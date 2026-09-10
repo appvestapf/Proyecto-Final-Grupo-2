@@ -1,0 +1,198 @@
+[
+  {
+    "id": 1,
+    "name": "Departamento Palermo",
+    "description": "Moderno departamento ubicado en el corazón de Palermo, cerca de restaurantes, parques y medios de transporte.",
+    "price": 851,
+    "location": "Buenos Aires, Argentina",
+    "lat": -34.5889,
+    "lng": -58.4309,
+    "isAvailable": true,
+    "capactity": 4,
+    "rooms": 2,
+    "bathrooms": 1,
+    "isPetFriendly": true,
+    "hasGarage": false,
+    "images": [
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d",
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3",
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Casa Belgrano",
+    "description": "Amplia casa familiar con jardín, ubicada en una zona residencial tranquila de Belgrano.",
+    "price": 1500,
+    "location": "Buenos Aires, Argentina",
+    "lat": -34.5627,
+    "lng": -58.4569,
+    "isAvailable": false,
+    "capactity": 6,
+    "rooms": 4,
+    "bathrooms": 2,
+    "isPetFriendly": true,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
+      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea",
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Departamento Centro",
+    "description": "Departamento luminoso y completamente equipado, ideal para estadías temporarias en el centro de Córdoba.",
+    "price": 650,
+    "location": "Córdoba, Argentina",
+    "lat": -31.4167,
+    "lng": -64.1833,
+    "isAvailable": true,
+    "capactity": 3,
+    "rooms": 1,
+    "bathrooms": 1,
+    "isPetFriendly": false,
+    "hasGarage": false,
+    "images": [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267",
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Casa Nueva Córdoba",
+    "description": "Casa moderna con amplios espacios interiores, ubicada cerca de universidades y zonas comerciales.",
+    "price": 1100,
+    "location": "Córdoba, Argentina",
+    "lat": -31.4284,
+    "lng": -64.1857,
+    "isAvailable": true,
+    "capactity": 5,
+    "rooms": 3,
+    "bathrooms": 2,
+    "isPetFriendly": true,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600585154526-990dced4db0d",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c",
+      "https://images.unsplash.com/photo-1600566753051-7e5a3b9f6a1c"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Departamento Providencia",
+    "description": "Elegante departamento con excelente ubicación y acceso a restaurantes, comercios y transporte público.",
+    "price": 1200,
+    "location": "Santiago, Chile",
+    "lat": -33.4263,
+    "lng": -70.6165,
+    "isAvailable": false,
+    "capactity": 4,
+    "rooms": 2,
+    "bathrooms": 2,
+    "isPetFriendly": false,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600607688960-e095ff83135c",
+      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea"
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Casa Las Condes",
+    "description": "Amplia propiedad en una zona exclusiva de Santiago, con jardín privado y estacionamiento.",
+    "price": 2100,
+    "location": "Santiago, Chile",
+    "lat": -33.4105,
+    "lng": -70.5671,
+    "isAvailable": true,
+    "capactity": 8,
+    "rooms": 5,
+    "bathrooms": 3,
+    "isPetFriendly": true,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600585152915-d208bec867a1",
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d",
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3"
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Departamento Miraflores",
+    "description": "Departamento moderno con vista a la ciudad, ubicado cerca del malecón y principales atracciones de Lima.",
+    "price": 950,
+    "location": "Lima, Perú",
+    "lat": -12.1211,
+    "lng": -77.0297,
+    "isAvailable": true,
+    "capactity": 4,
+    "rooms": 2,
+    "bathrooms": 2,
+    "isPetFriendly": true,
+    "hasGarage": false,
+    "images": [
+      "https://images.unsplash.com/photo-1493809842364-78817add7ffb",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688"
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Casa Pocitos",
+    "description": "Cómoda casa familiar ubicada en un barrio tranquilo, a pocos minutos de la costa y zonas comerciales.",
+    "price": 1300,
+    "location": "Montevideo, Uruguay",
+    "lat": -34.9137,
+    "lng": -56.1536,
+    "isAvailable": true,
+    "capactity": 6,
+    "rooms": 3,
+    "bathrooms": 2,
+    "isPetFriendly": true,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154",
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3"
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Departamento Condesa",
+    "description": "Departamento moderno y luminoso en una de las zonas más buscadas de Ciudad de México.",
+    "price": 1400,
+    "location": "Ciudad de México, México",
+    "lat": 19.4119,
+    "lng": -99.1712,
+    "isAvailable": false,
+    "capactity": 3,
+    "rooms": 2,
+    "bathrooms": 1,
+    "isPetFriendly": false,
+    "hasGarage": false,
+    "images": [
+      "https://images.unsplash.com/photo-1524758631624-e2822e304c36",
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85"
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Casa Chapinero",
+    "description": "Casa amplia y confortable con espacios verdes, ideal para familias que buscan tranquilidad sin alejarse de la ciudad.",
+    "price": 1000,
+    "location": "Bogotá, Colombia",
+    "lat": 4.6486,
+    "lng": -74.0636,
+    "isAvailable": true,
+    "capactity": 7,
+    "rooms": 4,
+    "bathrooms": 3,
+    "isPetFriendly": true,
+    "hasGarage": true,
+    "images": [
+      "https://images.unsplash.com/photo-1600585154526-990dced4db0d",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c",
+      "https://images.unsplash.com/photo-1600566753051-7e5a3b9f6a1c"
+    ]
+  }
+]
