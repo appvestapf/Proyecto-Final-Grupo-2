@@ -6,8 +6,7 @@ import Image from 'next/image';
 
 export const CardInmueble = ({ data }: { data: Property }) => {
   return (
-    <div className="w-[320px] bg-base-1 rounded-[12px] border border-base-2 shadow-sm overflow-hidden flex flex-col cursor-pointer transition-transform duration-200 hover:-translate-y-1">
-      
+    <div className="w-full bg-base-1 rounded-[12px] border border-base-2 shadow-sm overflow-hidden flex flex-col cursor-pointer transition-transform duration-200 hover:-translate-y-1">
       {/* Contenedor de Imagen */}
       <div className="relative h-[220px] w-full bg-base-2">
         <div className="absolute top-3 left-3 z-10">
@@ -21,10 +20,8 @@ export const CardInmueble = ({ data }: { data: Property }) => {
   className="object-cover"
         />
       </div>
-
       {/* Contenido Inferior */}
       <div className="p-4 flex flex-col">
-        
         {/* Precio y Calificación */}
         <div className="flex justify-between items-center mb-2">
           <p className="font-bold text-xl text-base-4">
@@ -35,14 +32,12 @@ export const CardInmueble = ({ data }: { data: Property }) => {
             <span>{data.rating}</span>
           </div>
         </div>
-
         {/* Título y Ubicación */}
         <p className="font-medium text-base-4 truncate mb-1">{data.name}</p>
         <p className="text-sm text-base-3 truncate mb-3">{data.location}</p>
-
         {/* Línea divisoria */}
         <hr className="border-t border-base-3/20 my-3" />
-        {/* Características (Íconos) */}
+        {/* Características Íconos */}
         <div className="flex items-center gap-4 text-xs font-medium text-base-3">
           <div className="flex items-center gap-1.5">
             <Bed size={16} /> <span>{data.rooms} dorm.</span>
@@ -51,7 +46,6 @@ export const CardInmueble = ({ data }: { data: Property }) => {
             <Bath size={16} /> <span>{data.bathrooms} baños</span>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* Usamos Tag porque en tu diseño el ícono de m2 parece una etiqueta inclinada */}
             <Tag size={16} className="rotate-90" /> <span>{data.area} m²</span>
           </div>
         </div>
