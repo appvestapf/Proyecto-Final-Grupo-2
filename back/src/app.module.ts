@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersModule } from './modules/users/users.module';
+import { PropertiesModule } from './modules/properties/properties.module';
 import 'dotenv/config';
 
 @Module({
@@ -9,11 +11,13 @@ import 'dotenv/config';
       isGlobal: true,
     }),
     TypeOrmModule.forRoot({
-      type:'postgres',
+      type: 'postgres',
       url: process.env.DATABASE_URL,
       autoLoadEntities: true,
-      synchronize:false,
-    })
+      synchronize: false,
+    }),
+    UsersModule,
+    PropertiesModule,
   ],
   controllers: [],
   providers: [],
