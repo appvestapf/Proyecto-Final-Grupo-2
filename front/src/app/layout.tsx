@@ -26,16 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode;}) 
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen flex flex-col antialiased bg-slate-50 text-slate-900`}
       >
-
-            <>
-                <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
-                    <Navbar />
-                    {children}
-                    <Footer />
-                        
-                </main>     
-            </>
+        <Navbar />
+        {children}
+        <Footer />
       </body>
     </html>
   );
