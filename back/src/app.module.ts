@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import 'dotenv/config';
 
@@ -15,6 +16,7 @@ import 'dotenv/config';
       autoLoadEntities: true,
       synchronize: false,
     }),
+    UsersModule,
     PropertiesModule,
   ],
   controllers: [],
