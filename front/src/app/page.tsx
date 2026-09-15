@@ -1,5 +1,6 @@
 import { Hero } from '@/components/home/Hero/Hero'; 
 import { FeaturedRow } from '@/components/home/FeaturedRow/FeaturedRow'; // Ajusta la ruta si es necesario
+import { PromoSlider } from '@/components/home/PromeSlider/PromoSlider';
 import { propertyService } from '@/services/propertyService';
 
 export default async function Home() {
@@ -25,6 +26,7 @@ export default async function Home() {
           />
         )}
       </div>
+      <PromoSlider/>
     </main>
   );
 }
