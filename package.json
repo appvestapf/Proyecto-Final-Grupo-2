@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@nestjs/mapped-types": "*"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0"
+  }
+}
