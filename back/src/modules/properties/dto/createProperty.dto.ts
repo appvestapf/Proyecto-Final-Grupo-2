@@ -2,14 +2,15 @@ import {
   IsString,
   IsNumber,
   IsBoolean,
-  IsOptional,
   IsArray,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePropertyDto {
   @ApiProperty({ example: 'Departamento Palermo', required: true })
   @IsString()
+  @MaxLength(100)
   name: string;
 
   @ApiProperty({
@@ -25,62 +26,56 @@ export class CreatePropertyDto {
 
   @ApiProperty({ example: 'Argentina', required: true })
   @IsString()
+  @MaxLength(60)
   country: string;
 
   @ApiProperty({ example: 'Buenos Aires', required: true })
   @IsString()
+  @MaxLength(60)
   city: string;
 
-  @ApiProperty({ example: -34.5889, required: false })
-  @IsOptional()
+  @ApiProperty({ example: -34.5889, required: true })
   @IsNumber()
   lat: number;
 
-  @ApiProperty({ example: -58.4309, required: false })
-  @IsOptional()
+  @ApiProperty({ example: -58.4309, required: true })
   @IsNumber()
   lng: number;
 
   @ApiProperty({ example: 'temporario', required: true })
   @IsString()
+  @MaxLength(30)
   rentalType: string;
 
-  @ApiProperty({ example: 4, required: false })
-  @IsOptional()
+  @ApiProperty({ example: 4, required: true })
   @IsNumber()
   capacity: number;
 
-  @ApiProperty({ example: 2, required: false })
-  @IsOptional()
+  @ApiProperty({ example: 2, required: true })
   @IsNumber()
   rooms: number;
 
-  @ApiProperty({ example: 1, required: false })
-  @IsOptional()
+  @ApiProperty({ example: 1, required: true })
   @IsNumber()
   bathrooms: number;
 
-  @ApiProperty({ example: true, required: false })
-  @IsOptional()
+  @ApiProperty({ example: true, required: true })
   @IsBoolean()
   isPetFriendly: boolean;
 
-  @ApiProperty({ example: false, required: false })
-  @IsOptional()
+  @ApiProperty({ example: false, required: true })
   @IsBoolean()
   hasGarage: boolean;
 
-  @ApiProperty({ example: true, required: false })
-  @IsOptional()
+  @ApiProperty({ example: true, required: true })
   @IsBoolean()
   isAvailable: boolean;
 
   @ApiProperty({
     example: ['https://res.cloudinary.com/tucuenta/image1.jpg'],
-    required: false,
+    required: true,
     type: [String],
   })
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   images: string[];
