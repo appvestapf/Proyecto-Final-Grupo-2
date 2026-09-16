@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import 'dotenv/config';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import 'dotenv/config';
     }),
     UsersModule,
     PropertiesModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],
