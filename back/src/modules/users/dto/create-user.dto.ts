@@ -12,14 +12,19 @@ export class CreateUserDto {
 
   @ApiProperty({ example: '12345678', minLength: 8, description: 'Contraseña, mínimo 8 caracteres' })
   @MinLength(8)
-  password: string;
+  password?: string|null;
 
   @ApiProperty({ example: 'Calle Falsa 123, Buenos Aires', description: 'Dirección del usuario' })
   @IsString()
-  address: string;
+  address?: string | null;
 
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @IsOptional()
   @IsString()
   pfp?: string;
+
+  @ApiPropertyOptional({ description: 'ID de Google del usuario' })
+  @IsOptional()
+  @IsString()
+  googleId?: string;
 }

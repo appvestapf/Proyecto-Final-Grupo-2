@@ -18,12 +18,12 @@ export class User {
 
   @ApiHideProperty()
   @Exclude()
-  @Column()
-  password: string;
+  @Column({type : 'varchar',nullable: true})
+  password: string|null;
 
   @ApiProperty({ example: 'Calle Falsa 123, Buenos Aires' })
-  @Column()
-  address: string;
+  @Column({type: 'varchar',nullable:true})
+  address: string|null;
 
   @ApiProperty({ default: false })
   @Column({ default: false })
@@ -32,6 +32,9 @@ export class User {
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @Column({ nullable: true })
   pfp: string;
+
+  @Column({ type:'varchar',nullable: true, unique: true })
+  googleId: string|null;
 
   //@OneToMany(() => Cita, (cita) => cita.user)
   //citas: Cita[];
