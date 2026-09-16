@@ -5,19 +5,19 @@ export class Property {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ length: 100 })
   name: string;
 
-  @Column()
+  @Column('text')
   description: string;
 
-  @Column('decimal')
+  @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column()
+  @Column({ length: 60 })
   country: string;
 
-  @Column()
+  @Column({ length: 60 })
   city: string;
 
   @Column('decimal')
@@ -26,7 +26,7 @@ export class Property {
   @Column('decimal')
   lng: number;
 
-  @Column()
+  @Column({ length: 30 })
   rentalType: string;
 
   @Column()
@@ -46,8 +46,10 @@ export class Property {
 
   @Column({ default: true })
   isAvailable: boolean;
-}
 
+  @Column('text', { array: true, default: [] })
+  images: string[];
+}
 // @ManyToOne(() => User, (user) => user.properties)
 // owner: User;
 

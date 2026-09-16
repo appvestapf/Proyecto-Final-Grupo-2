@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
-import { PropertyDto } from './dto/property.dto';
+import { CreatePropertyDto } from './dto/createProperty.dto';
+import { UpdatePropertyDto } from './dto/updateProperty.dto';
 
 @Injectable()
 export class PropertiesService {
@@ -11,8 +12,8 @@ export class PropertiesService {
     private propertiesRepository: Repository<Property>,
   ) {}
 
-  create(propertyDto: PropertyDto) {
-    const newProperty = this.propertiesRepository.create(propertyDto);
+  create(createPropertyDto: CreatePropertyDto) {
+    const newProperty = this.propertiesRepository.create(createPropertyDto);
     return this.propertiesRepository.save(newProperty);
   }
 
@@ -51,10 +52,10 @@ export class PropertiesService {
     return property;
   }
 
-  async update(id: string, propertyDto: PropertyDto) {
+  async update(id: string, updatePropertyDto: UpdatePropertyDto) {
     const property = await this.findOne(id);
 
-    Object.assign(property, propertyDto);
+    Object.assign(property, updatePropertyDto);
 
     return this.propertiesRepository.save(property);
   }
