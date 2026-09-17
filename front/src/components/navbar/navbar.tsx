@@ -1,9 +1,17 @@
 "use client"; // Le indica a Next.js que este componente tiene interactividad
 
 import Link from "next/link";
+import { usePathname } from "next/navigation"; 
 import { NavItems } from "@/utils/NavItems"; 
 
 export default function Navbar() {
+
+  const pathname = usePathname(); // 2. Obtener la ruta actual
+
+  if (pathname.startsWith('/admin')) { // 3. Si estamos en el panel de admin, no renderizamos este Navbar
+    return null; 
+  }
+
   // 1. Simulación del usuario actual (Historias de usuario)
   // Cambia este valor para probar cómo se transforma la Navbar:
   // "visitante" -> Ve Inicio y Explorar. Botones de Login/Registro.
