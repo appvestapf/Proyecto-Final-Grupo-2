@@ -5,13 +5,14 @@ import {
   Body,
   Patch,
   Param,
+  ParseUUIDPipe,
   Delete,
   Query,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -41,18 +42,22 @@ export class PropertiesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar una propiedad por id' })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad encontrada' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.propertiesService.findOne(id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar una propiedad existente' })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,
   ) {
     return this.propertiesService.update(id, updatePropertyDto);
@@ -60,9 +65,11 @@ export class PropertiesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar una propiedad' })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad eliminada' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.propertiesService.remove(id);
   }
 }
