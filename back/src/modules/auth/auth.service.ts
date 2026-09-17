@@ -17,14 +17,9 @@ export class AuthService {
         const existingUser = await this.usersService.findByEmail(signupDto.email)
         if (existingUser) throw new ConflictException('El email ya está registrado')
 
-        const hashedPassword = await bcrypt.hash(signupDto.password, 10)
-
         const { confirmPassword, ...userData } = signupDto
 
-        const user = await this.usersService.create({
-            ...userData,
-            password: hashedPassword,
-        })
+        const user = await this.usersService.create(userData)
 
         const { password, ...userWithoutPassword } = user
 
