@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
+  IsIn,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -24,6 +25,14 @@ export class CreatePropertyDto {
   @IsNumber()
   price: number;
 
+  @ApiProperty({
+    example: 'noche',
+    enum: ['noche', 'mes'],
+    required: true,
+  })
+  @IsIn(['noche', 'mes'])
+  priceUnit: string;
+
   @ApiProperty({ example: 'Argentina', required: true })
   @IsString()
   @MaxLength(60)
@@ -42,9 +51,12 @@ export class CreatePropertyDto {
   @IsNumber()
   lng: number;
 
-  @ApiProperty({ example: 'temporario', required: true })
-  @IsString()
-  @MaxLength(30)
+  @ApiProperty({
+    example: 'Temporario',
+    enum: ['Temporario', 'Residencial'],
+    required: true,
+  })
+  @IsIn(['Temporario', 'Residencial'])
   rentalType: string;
 
   @ApiProperty({ example: 4, required: true })
@@ -58,6 +70,10 @@ export class CreatePropertyDto {
   @ApiProperty({ example: 1, required: true })
   @IsNumber()
   bathrooms: number;
+
+  @ApiProperty({ example: 65, required: true })
+  @IsNumber()
+  area: number;
 
   @ApiProperty({ example: true, required: true })
   @IsBoolean()

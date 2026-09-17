@@ -1,5 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
+const numericTransformer = {
+  to: (value: number) => value,
+  from: (value: string) => parseFloat(value),
+};
+
 @Entity('properties')
 export class Property {
   @PrimaryGeneratedColumn('uuid')
@@ -11,8 +16,15 @@ export class Property {
   @Column('text')
   description: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    transformer: numericTransformer,
+  })
   price: number;
+
+  @Column({ length: 10 })
+  priceUnit: string;
 
   @Column({ length: 60 })
   country: string;
@@ -20,10 +32,10 @@ export class Property {
   @Column({ length: 60 })
   city: string;
 
-  @Column('decimal')
+  @Column('decimal', { transformer: numericTransformer })
   lat: number;
 
-  @Column('decimal')
+  @Column('decimal', { transformer: numericTransformer })
   lng: number;
 
   @Column({ length: 30 })
@@ -37,6 +49,17 @@ export class Property {
 
   @Column()
   bathrooms: number;
+
+  @Column()
+  area: number;
+
+  @Column('decimal', {
+    precision: 3,
+    scale: 2,
+    default: 0,
+    transformer: numericTransformer,
+  })
+  rating: number;
 
   @Column({ default: false })
   isPetFriendly: boolean;
