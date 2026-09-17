@@ -11,7 +11,7 @@ import {
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -27,11 +27,14 @@ export class PropertiesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar propiedades, con filtros opcionales' })
+  @ApiQuery({ name: 'country', required: false, description: 'Filtrar por país' })
+  @ApiQuery({ name: 'city', required: false, description: 'Filtrar por ciudad' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)' })
   @ApiResponse({ status: 200, description: 'Listado de propiedades' })
   findAll(
-    @Query('country') country: string,
-    @Query('city') city: string,
-    @Query('page') page: string,
+    @Query('country') country?: string,
+    @Query('city') city?: string,
+    @Query('page') page?: string,
   ) {
     return this.propertiesService.findAll(country, city, page);
   }
