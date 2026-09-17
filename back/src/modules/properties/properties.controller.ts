@@ -9,7 +9,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
-import { PropertyDto } from './dto/property.dto';
+import { CreatePropertyDto } from './dto/createProperty.dto';
+import { UpdatePropertyDto } from './dto/updateProperty.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Properties')
@@ -20,8 +21,8 @@ export class PropertiesController {
   @Post()
   @ApiOperation({ summary: 'Crear una nueva propiedad' })
   @ApiResponse({ status: 201, description: 'Propiedad creada correctamente' })
-  create(@Body() propertyDto: PropertyDto) {
-    return this.propertiesService.create(propertyDto);
+  create(@Body() createPropertyDto: CreatePropertyDto) {
+    return this.propertiesService.create(createPropertyDto);
   }
 
   @Get()
@@ -47,8 +48,11 @@ export class PropertiesController {
   @ApiOperation({ summary: 'Actualizar una propiedad existente' })
   @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  update(@Param('id') id: string, @Body() propertyDto: PropertyDto) {
-    return this.propertiesService.update(id, propertyDto);
+  update(
+    @Param('id') id: string,
+    @Body() updatePropertyDto: UpdatePropertyDto,
+  ) {
+    return this.propertiesService.update(id, updatePropertyDto);
   }
 
   @Delete(':id')

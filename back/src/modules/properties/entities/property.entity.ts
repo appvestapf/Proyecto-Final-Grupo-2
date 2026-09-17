@@ -1,32 +1,44 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
+const numericTransformer = {
+  to: (value: number) => value,
+  from: (value: string) => parseFloat(value),
+};
+
 @Entity('properties')
 export class Property {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ length: 100 })
   name: string;
 
-  @Column()
+  @Column('text')
   description: string;
 
-  @Column('decimal')
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    transformer: numericTransformer,
+  })
   price: number;
 
-  @Column()
+  @Column({ length: 10 })
+  priceUnit: string;
+
+  @Column({ length: 60 })
   country: string;
 
-  @Column()
+  @Column({ length: 60 })
   city: string;
 
-  @Column('decimal')
+  @Column('decimal', { transformer: numericTransformer })
   lat: number;
 
-  @Column('decimal')
+  @Column('decimal', { transformer: numericTransformer })
   lng: number;
 
-  @Column()
+  @Column({ length: 30 })
   rentalType: string;
 
   @Column()
@@ -38,6 +50,17 @@ export class Property {
   @Column()
   bathrooms: number;
 
+  @Column()
+  area: number;
+
+  @Column('decimal', {
+    precision: 3,
+    scale: 2,
+    default: 0,
+    transformer: numericTransformer,
+  })
+  rating: number;
+
   @Column({ default: false })
   isPetFriendly: boolean;
 
@@ -46,8 +69,10 @@ export class Property {
 
   @Column({ default: true })
   isAvailable: boolean;
-}
 
+  @Column('text', { array: true, default: [] })
+  images: string[];
+}
 // @ManyToOne(() => User, (user) => user.properties)
 // owner: User;
 
