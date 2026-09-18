@@ -30,7 +30,7 @@ export class UsersService {
   }
 
   findAll() {
-    return this.usersRepository.find();
+    return this.usersRepository.find({ where: { isActive: true } });
   }
 
   async findOne(id: string) {
@@ -41,6 +41,13 @@ export class UsersService {
     return user;
   }
 
+  async findOnePublic(id: string) {
+    const user = await this.findOne(id);
+    if (!user.isActive) {
+      throw new NotFoundException(`Usuario ${id} no encontrado`);
+    }
+    return user;
+  }
   findByEmail(email: string) {
     return this.usersRepository.findOneBy({ email });
   }
@@ -53,6 +60,7 @@ export class UsersService {
 
   async remove(id: string) {
     const user = await this.findOne(id);
-    return this.usersRepository.remove(user);
+    user.isActive = false;
+    return this.usersRepository.save(user);
   }
 }

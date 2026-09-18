@@ -88,7 +88,7 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.findOne(id);
+    return this.usersService.findOnePublic(id);
   }
 
   @Patch(':id')
