@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  ParseUUIDPipe,
   Delete,
   Query,
   UseInterceptors,
@@ -16,6 +17,7 @@ import {
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ApiBody,
   ApiConsumes,
@@ -80,18 +82,23 @@ export class PropertiesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar propiedades, con filtros opcionales' })
+  @ApiQuery({ name: 'country', required: false, description: 'Filtrar por país' })
+  @ApiQuery({ name: 'city', required: false, description: 'Filtrar por ciudad' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)' })
   @ApiResponse({ status: 200, description: 'Listado de propiedades' })
   findAll(
-    @Query('country') country: string,
-    @Query('city') city: string,
-    @Query('page') page: string,
+    @Query('country') country?: string,
+    @Query('city') city?: string,
+    @Query('page') page?: string,
   ) {
     return this.propertiesService.findAll(country, city, page);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar una propiedad por id' })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad encontrada' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
   findOne(@Param('id') id: string) {
     return this.propertiesService.findOnePublic(id);
@@ -99,10 +106,12 @@ export class PropertiesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar una propiedad existente' })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,
   ) {
     return this.propertiesService.update(id, updatePropertyDto);
@@ -118,7 +127,7 @@ export class PropertiesController {
     description: 'Propiedad desactivada correctamente',
   })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.propertiesService.remove(id);
   }
 }

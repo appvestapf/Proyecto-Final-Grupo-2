@@ -53,6 +53,12 @@ export class AuthService {
         }
     }
 
+    async logout() {
+        // JWT es stateless: no hay nada que invalidar del lado del servidor.
+        // El frontend es responsable de borrar el token guardado (localStorage/cookies).
+        return { message: 'Sesión cerrada correctamente' }
+    }
+
     async googleLogin(googleUser: GoogleUser) {
         let user = await this.usersService.findByEmail(
             googleUser.email,
