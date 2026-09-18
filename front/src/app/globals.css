@@ -9,3 +9,7 @@
   --color-base-3: #6B7280;
   --color-base-4: #111827;
 }
+
+body{
+  background-color: rgb(248, 249, 250);
+}
