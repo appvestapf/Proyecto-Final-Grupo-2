@@ -51,7 +51,15 @@ export class PropertiesService {
 
     return property;
   }
+  async findOnePublic(id: string) {
+    const property = await this.findOne(id);
 
+    if (!property.isAvailable) {
+      throw new NotFoundException('No se encontro la propiedad');
+    }
+
+    return property;
+  }
   async update(id: string, updatePropertyDto: UpdatePropertyDto) {
     const property = await this.findOne(id);
 
@@ -62,6 +70,7 @@ export class PropertiesService {
 
   async remove(id: string) {
     const property = await this.findOne(id);
-    return this.propertiesRepository.remove(property);
+    property.isAvailable = false;
+    return this.propertiesRepository.save(property);
   }
 }

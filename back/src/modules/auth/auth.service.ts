@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
+import { MailService } from "../mail/mail.service";
 import { JwtService } from "@nestjs/jwt";
 import { SignupDto } from "./dto/signup.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -11,20 +12,18 @@ export class AuthService {
     constructor(
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
+        private readonly mailService: MailService,
     ) { }
 
     async signup(signupDto: SignupDto) {
         const existingUser = await this.usersService.findByEmail(signupDto.email)
         if (existingUser) throw new ConflictException('El email ya está registrado')
 
-        const hashedPassword = await bcrypt.hash(signupDto.password, 10)
-
         const { confirmPassword, ...userData } = signupDto
 
-        const user = await this.usersService.create({
-            ...userData,
-            password: hashedPassword,
-        })
+        const user = await this.usersService.create(userData)
+
+        await this.mailService.sendWelcomeEmail(user.email, user.name)
 
         const { password, ...userWithoutPassword } = user
 
@@ -50,8 +49,14 @@ export class AuthService {
         const accessToken = await this.jwtService.signAsync(payload)
 
         return {
-            acces_token: accessToken
+            access_token: accessToken
         }
+    }
+
+    async logout() {
+        // JWT es stateless: no hay nada que invalidar del lado del servidor.
+        // El frontend es responsable de borrar el token guardado (localStorage/cookies).
+        return { message: 'Sesión cerrada correctamente' }
     }
 
     async googleLogin(googleUser: GoogleUser) {
@@ -68,6 +73,8 @@ export class AuthService {
                 password: null,
                 address: null,
             });
+
+            await this.mailService.sendWelcomeEmail(user.email, user.name)
         } else if (
             user.googleId &&
             user.googleId !== googleUser.googleId

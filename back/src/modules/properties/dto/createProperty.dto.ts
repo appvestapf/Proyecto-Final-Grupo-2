@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsArray,
   IsIn,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -93,6 +94,6 @@ export class CreatePropertyDto {
     type: [String],
   })
   @IsArray()
-  @IsString({ each: true })
+  @IsUrl({}, { each: true })
   images: string[];
 }

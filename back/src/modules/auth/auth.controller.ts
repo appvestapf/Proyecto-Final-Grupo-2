@@ -50,11 +50,33 @@ export class AuthController {
         return this.authService.login(loginDto);
     }
 
+    @Post('logout')
+    @ApiOperation({
+        summary: 'Cerrar sesión',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Sesión cerrada correctamente',
+    })
+    logout() {
+        return this.authService.logout();
+    }
+
     @Get('google')
+    @ApiOperation({
+        summary: 'Iniciar el flujo de login con Google',
+    })
     @UseGuards(AuthGuard('google'))
     googleAuth() {}
 
     @Get('google/callback')
+    @ApiOperation({
+        summary: 'Callback de Google OAuth (uso interno, no se llama directamente)',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Login con Google exitoso',
+    })
     @UseGuards(AuthGuard('google'))
     googleAuthCallback(@Req() req: Request){
         return this.authService.googleLogin(req.user as GoogleUser)
