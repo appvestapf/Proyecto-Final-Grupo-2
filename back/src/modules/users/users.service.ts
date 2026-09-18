@@ -1,11 +1,24 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersRepository } from './users.repository';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
+
+  async uploadPhoto(file: Express.Multer.File): Promise<string> {
+    const result = await this.cloudinaryService.uploadImage(file, 'users');
+    return result.secure_url;
+  }
 
   async create(createUserDto: CreateUserDto) {
     const existing = await this.findByEmail(createUserDto.email);
