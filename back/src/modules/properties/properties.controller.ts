@@ -17,11 +17,16 @@ import {
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
+<<<<<<< Updated upstream
 import { ApiParam, ApiQuery } from '@nestjs/swagger';
+=======
+>>>>>>> Stashed changes
 import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';

@@ -1,10 +1,10 @@
 import { LoginCredentials, RegisterData, AuthResponse } from '@/interfaces/user';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/signIn`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28,7 +28,7 @@ export const authService = {
   },
 
   async register(userData: RegisterData): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/signUp`, {
+    const response = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
