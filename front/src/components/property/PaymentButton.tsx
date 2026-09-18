@@ -66,7 +66,7 @@ export default function PaymentButton({ propertyId, price }: PaymentButtonProps)
               Procesando...
             </span>
           ) : (
-            `Reintentar Pago — $${price.toLocaleString("es-AR")}`
+            `Realizar Pago — $${price.toLocaleString("es-AR")}`
           )}
         </button>
       ) : (
