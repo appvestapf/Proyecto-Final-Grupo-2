@@ -1,33 +1,37 @@
 import { Property } from "@/interfaces/property";
-import mockPropertiesData from "@/services/mock-properties.json";
 
-// Función adaptador para transformar los datos crudos del mock a la interfaz Property
-const mapMockToProperty = (item: any): Property => ({
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const mapBackendToProperty = (item: any): Property => ({
   ...item,
-  id: String(item.id), // Asegura que el ID sea string según BaseProperty
-  name: item.title, // Usa el título como nombre para cumplir con BaseProperty
+  title: item.name, // Tu vista de detalle usa property.title
+  location: `${item.city}, ${item.country}` // Unificamos ciudad y país
 });
 
 export const propertyService = {
-  async getProperties(): Promise<Property[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mappedProperties = (mockPropertiesData as any[]).map(
-          mapMockToProperty,
-        );
-        resolve(mappedProperties);
-      }, 300);
-    });
+    async getProperties(): Promise<Property[]> {
+    try {
+      const response = await fetch(`${API_URL}/properties`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Error al obtener propiedades');      
+      const data = await response.json();
+      return data.map(mapBackendToProperty);
+    } catch (error) {
+      console.error("Error obteniendo propiedades:", error);
+      return []; 
+    }
   },
 
   async getPropertyById(id: string): Promise<Property | undefined> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const found = (mockPropertiesData as any[]).find(
-          (p) => String(p.id) === id,
-        );
-        resolve(found ? mapMockToProperty(found) : undefined);
-      }, 300);
-    });
+    try {
+      const response = await fetch(`${API_URL}/properties/${id}`, { cache: 'no-store' });
+      
+      if (!response.ok) return undefined;
+      
+      const data = await response.json();
+      return mapBackendToProperty(data);
+    } catch (error) {
+      console.error(`Error obteniendo la propiedad ${id}:`, error);
+      return undefined;
+    }
   },
 };
