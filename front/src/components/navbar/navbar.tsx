@@ -60,7 +60,7 @@ export default function Navbar() {
         <div className="absolute left-1/2 -translate-x-1/2">
           <Link href="/">
             <Image 
-              src="/logo.png"  
+              src="/logo2.png"  
               alt="Vesta Logo" 
               width={70} 
               height={35} 
