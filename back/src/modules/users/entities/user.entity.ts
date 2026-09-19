@@ -1,7 +1,18 @@
 import { Reservation } from '../../reservations/entities/reservation.entity';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import { Appointment } from '../../appointments/entities/appointment.entity';
-import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
 
@@ -21,12 +32,12 @@ export class User {
 
   @ApiHideProperty()
   @Exclude()
-  @Column({type : 'varchar',nullable: true})
-  password: string|null;
+  @Column({ type: 'varchar', nullable: true })
+  password: string | null;
 
   @ApiProperty({ example: 'Calle Falsa 123, Buenos Aires' })
-  @Column({type: 'varchar',nullable:true})
-  address: string|null;
+  @Column({ type: 'varchar', nullable: true })
+  address: string | null;
 
   @ApiProperty({ default: false })
   @Column({ default: false })
@@ -36,10 +47,17 @@ export class User {
   @Column({ nullable: true })
   pfp: string;
 
-  @Column({ type:'varchar',nullable: true, unique: true })
-  googleId: string|null;
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  googleId: string | null;
 
-  @OneToMany(()=> Reservation, (reservation)=> reservation.user)
+  @ApiProperty({
+    default: true,
+    description: 'Falso si el usuario fue dado de baja (borrado lógico)',
+  })
+  @Column({ default: true })
+  isActive: boolean;
+
+  @OneToMany(() => Reservation, (reservation) => reservation.user)
   reservations: Reservation[];
 
   @OneToMany(() => Appointment, (appointment) => appointment.user)
