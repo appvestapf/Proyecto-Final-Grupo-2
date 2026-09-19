@@ -12,6 +12,7 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
+import { Appointment } from '../../appointments/entities/appointment.entity';
 import { Exclude } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
 
@@ -59,11 +60,8 @@ export class User {
   @OneToMany(() => Reservation, (reservation) => reservation.user)
   reservations: Reservation[];
 
-  //@OneToMany(() => Cita, (cita) => cita.user)
-  //citas: Cita[];
-
-  //@OneToMany(() => Reserva, (reserva) => reserva.user)
-  //reservas: Reserva[];
+  @OneToMany(() => Appointment, (appointment) => appointment.user)
+  appointments: Appointment[];
 
   @BeforeInsert()
   @BeforeUpdate()
