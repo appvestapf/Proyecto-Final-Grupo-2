@@ -13,13 +13,27 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ForbiddenException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
-import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -30,13 +44,25 @@ export class PropertiesController {
   ) {}
 
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Crear una nueva propiedad' })
   @ApiResponse({ status: 201, description: 'Propiedad creada correctamente' })
-  create(@Body() createPropertyDto: CreatePropertyDto) {
+  @ApiResponse({
+    status: 403,
+    description: 'Solo un admin puede crear propiedades',
+  })
+  create(@Body() createPropertyDto: CreatePropertyDto, @Req() req: Request) {
+    const requester = req.user as { isAdmin: boolean };
+    if (!requester.isAdmin) {
+      throw new ForbiddenException('Solo un admin puede crear propiedades');
+    }
     return this.propertiesService.create(createPropertyDto);
   }
 
   @Post('upload-images')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FilesInterceptor('images', 10))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
@@ -110,6 +136,8 @@ export class PropertiesController {
   }
 
   @Patch(':id')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Actualizar una propiedad existente' })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
@@ -118,11 +146,20 @@ export class PropertiesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,
+    @Req() req: Request,
   ) {
+    const requester = req.user as { isAdmin: boolean };
+    if (!requester.isAdmin) {
+      throw new ForbiddenException(
+        'Solo un admin puede actualizar propiedades',
+      );
+    }
     return this.propertiesService.update(id, updatePropertyDto);
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
     summary:
       'Desactivar una propiedad (borrado lógico, no elimina el registro)',
@@ -131,8 +168,18 @@ export class PropertiesController {
     status: 200,
     description: 'Propiedad desactivada correctamente',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Solo un admin puede desactivar propiedades',
+  })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const requester = req.user as { isAdmin: boolean };
+    if (!requester.isAdmin) {
+      throw new ForbiddenException(
+        'Solo un admin puede desactivar propiedades',
+      );
+    }
     return this.propertiesService.remove(id);
   }
 }
