@@ -4,6 +4,7 @@ import { Reservation } from "./entities/reservation.entity";
 import { Repository } from "typeorm";
 import { Property } from "../properties/entities/property.entity";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
+import { ReservationStatus } from "./enums/reservation-status.enum";
 
 @Injectable()
 export class ReservationService {
@@ -24,7 +25,7 @@ export class ReservationService {
         const reservation = this.reservationsRepository.create({
             userId,
             propertyId,
-            status: 'confirmed'
+            status: ReservationStatus.PENDING
         })
         const savedReservation = await this.reservationsRepository.save(reservation);
 
