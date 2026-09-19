@@ -27,11 +27,10 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    console.log("DATOS ENVIADOS DESDE EL FRONT:", data);
     setLoading(true);
     try {
-
-      const { confirmPassword, ...registerData } = data;
-      const response = await authService.register(registerData);
+      const response = await authService.register(data);
       
       if (response?.user && response?.token) {
         setAuth(response.user, response.token);
@@ -48,7 +47,8 @@ export default function RegisterPage() {
   };
 
   const handleGoogleRegister = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/extSignIn`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (
@@ -159,7 +159,6 @@ export default function RegisterPage() {
               </div>
               {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
             </div>
-
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>

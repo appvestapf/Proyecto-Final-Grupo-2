@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException, ForbiddenException } 
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { randomUUID } from "crypto";
-import { MercadoPagoConfig, Order } from 'mercadopago'
+import {MercadoPagoConfig, Order} from 'mercadopago'
 import { Payment } from "./entities/payment.entity";
 import { PaymentStatus } from "./enums/payment-status.enum";
 import { Reservation } from "../reservations/entities/reservation.entity";
@@ -14,12 +14,12 @@ import { User } from "../users/entities/user.entity";
 export class PaymentService {
     private readonly mercadoPagoClient: MercadoPagoConfig
 
-    constructor(
+    constructor (
         @InjectRepository(Payment) private readonly paymentsRepository: Repository<Payment>,
         @InjectRepository(Reservation) private readonly reservationsRepository: Repository<Reservation>,
         @InjectRepository(Property) private readonly propertiesRepository: Repository<Property>,
         @InjectRepository(User) private readonly usersRepository: Repository<User>
-    ) {
+    ){
         this.mercadoPagoClient = new MercadoPagoConfig({
             accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!
         })
