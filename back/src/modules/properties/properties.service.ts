@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
@@ -12,8 +16,11 @@ export class PropertiesService {
     private propertiesRepository: Repository<Property>,
   ) {}
 
-  create(createPropertyDto: CreatePropertyDto) {
-    const newProperty = this.propertiesRepository.create(createPropertyDto);
+  create(createPropertyDto: CreatePropertyDto, ownerId: string) {
+    const newProperty = this.propertiesRepository.create({
+      ...createPropertyDto,
+      owner: { id: ownerId },
+    });
     return this.propertiesRepository.save(newProperty);
   }
 
@@ -43,8 +50,8 @@ export class PropertiesService {
   async findOne(id: string) {
     const property = await this.propertiesRepository.findOne({
       where: { id: id },
+      relations: { owner: true },
     });
-
     if (!property) {
       throw new NotFoundException('No se encontro la propiedad');
     }
@@ -60,16 +67,35 @@ export class PropertiesService {
 
     return property;
   }
-  async update(id: string, updatePropertyDto: UpdatePropertyDto) {
+
+  async update(
+    id: string,
+    updatePropertyDto: UpdatePropertyDto,
+    requesterId: string,
+    isAdmin: boolean,
+  ) {
     const property = await this.findOne(id);
+
+    if (property.owner?.id !== requesterId && !isAdmin) {
+      throw new ForbiddenException(
+        'No podés modificar una propiedad que no es tuya',
+      );
+    }
 
     Object.assign(property, updatePropertyDto);
 
     return this.propertiesRepository.save(property);
   }
 
-  async remove(id: string) {
+  async remove(id: string, requesterId: string, isAdmin: boolean) {
     const property = await this.findOne(id);
+
+    if (property.owner?.id !== requesterId && !isAdmin) {
+      throw new ForbiddenException(
+        'No podés eliminar una propiedad que no es tuya',
+      );
+    }
+
     property.isAvailable = false;
     return this.propertiesRepository.save(property);
   }
