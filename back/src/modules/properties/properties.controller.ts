@@ -13,13 +13,26 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
-import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -30,18 +43,26 @@ export class PropertiesController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Crear una nueva propiedad' })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary:
+      'Crear una nueva propiedad (cualquier usuario logueado, queda como dueño)',
+  })
   @ApiResponse({ status: 201, description: 'Propiedad creada correctamente' })
-  create(@Body() createPropertyDto: CreatePropertyDto) {
-    return this.propertiesService.create(createPropertyDto);
+  create(@Body() createPropertyDto: CreatePropertyDto, @Req() req: Request) {
+    const requester = req.user as { id: string };
+    return this.propertiesService.create(createPropertyDto, requester.id);
   }
 
   @Post('upload-images')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FilesInterceptor('images', 10))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:
-      'Subir hasta 10 imágenes a Cloudinary y obtener sus URLs (usar el resultado en el campo "images" al crear/actualizar una propiedad)',
+      'Subir hasta 10 imágenes a Cloudinary y obtener sus URLs (cualquier usuario logueado; usar el resultado en el campo "images" al crear/actualizar una propiedad)',
   })
   @ApiBody({
     schema: {
@@ -110,29 +131,51 @@ export class PropertiesController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar una propiedad existente' })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Actualizar una propiedad existente (dueño, o admin)',
+  })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({
+    status: 403,
+    description: 'No podés modificar una propiedad que no es tuya',
+  })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,
+    @Req() req: Request,
   ) {
-    return this.propertiesService.update(id, updatePropertyDto);
+    const requester = req.user as { id: string; isAdmin: boolean };
+    return this.propertiesService.update(
+      id,
+      updatePropertyDto,
+      requester.id,
+      requester.isAdmin,
+    );
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
     summary:
-      'Desactivar una propiedad (borrado lógico, no elimina el registro)',
+      'Desactivar una propiedad (borrado lógico, no elimina el registro; dueño, o admin)',
   })
   @ApiResponse({
     status: 200,
     description: 'Propiedad desactivada correctamente',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'No podés eliminar una propiedad que no es tuya',
+  })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.propertiesService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const requester = req.user as { id: string; isAdmin: boolean };
+    return this.propertiesService.remove(id, requester.id, requester.isAdmin);
   }
 }

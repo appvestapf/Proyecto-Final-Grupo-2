@@ -15,6 +15,7 @@ import {
 import { Appointment } from '../../appointments/entities/appointment.entity';
 import { Exclude } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
+import { Property } from '../../properties/entities/property.entity';
 
 @Entity('users')
 export class User {
@@ -62,6 +63,9 @@ export class User {
 
   @OneToMany(() => Appointment, (appointment) => appointment.user)
   appointments: Appointment[];
+
+  @OneToMany(() => Property, (property) => property.owner)
+  properties: Property[];
 
   @BeforeInsert()
   @BeforeUpdate()
