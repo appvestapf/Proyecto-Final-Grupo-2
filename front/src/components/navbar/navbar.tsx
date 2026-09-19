@@ -3,45 +3,60 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation"; 
+import { useEffect, useState } from "react";
 import { NavItems } from "@/utils/NavItems"; 
+import { useAuthStore } from "@/store/useAuthStore";
+
+// Helper para obtener las iniciales del nombre y apellido (Ej: "Juan Pérez" -> "JP")
+const getInitials = (fullName?: string) => {
+  if (!fullName) return "U";
+  const parts = fullName.trim().split(" ");
+  if (parts.length >= 2) {
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  }
+  return fullName.charAt(0).toUpperCase();
+};
 
 export default function Navbar() {
   const pathname = usePathname(); 
+  
+  // Estados de Zustand
+  const role = useAuthStore((state) => state.role);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
-  // Si estamos en el panel de admin, no renderizamos este Navbar (Lógica original)
+  // Evitamos problemas de hidratación con Zustand persist
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Si estamos en el panel de admin, no renderizamos este Navbar
   if (pathname.startsWith('/admin')) { 
     return null; 
   }
 
-  // 1. Simulación del usuario actual (Lógica original)
-  const currentUserRole: "visitante" | "inquilino" | "admin" = "visitante";
+  // Si aún no se montó en el cliente, renderizamos una versión neutra para evitar parpadeos
+  const currentRole = mounted ? role : "visitante";
 
-  // 2. Aplicamos el Renderizado Condicional mediante .filter()
-  // Ocultamos "Inicio" y "Explorar" para mantener el diseño limpio.
   const allowedItems = NavItems.filter((item) =>
-    item.roles.includes(currentUserRole) &&
+    item.roles.includes(currentRole) &&
     item.nameToRender !== "Inicio" &&
     item.nameToRender !== "Explorar Propiedades"
   );
 
-  // IDENTIFICAR LA PÁGINA ACTUAL
   const isHome = pathname === '/';
 
-  // LÓGICA DE POSICIONAMIENTO Y COLORES
-  // Si es Home: 'absolute' (flota sobre la foto, pero se va al hacer scroll) + transparente
-  // Si NO es Home: 'relative' (ocupa espacio y NO solapa el Login) + fondo blanco
   const wrapperStyles = isHome
     ? "absolute top-0 left-0 bg-transparent border-transparent"
     : "relative bg-white border-b border-slate-200 shadow-sm";
 
-  // Textos blancos en el home, oscuros en las demás páginas
   const textStyles = isHome ? "text-white hover:text-gray-200" : "text-slate-600 hover:text-blue-600";
 
   return (
     <header className={`w-full z-50 ${wrapperStyles}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
         
-        {/* EXTREMO IZQUIERDO: Enlaces Dinámicos */}
         <div className="flex-1 hidden md:flex items-center">
           <nav className="flex items-center gap-6 text-sm font-medium">
             {allowedItems.map((item) => (
@@ -56,7 +71,6 @@ export default function Navbar() {
           </nav>
         </div>
 
-        {/* CENTRO: LOGO DE VESTA EN PNG */}
         <div className="absolute left-1/2 -translate-x-1/2">
           <Link href="/">
             <Image 
@@ -70,9 +84,11 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* EXTREMO DERECHO: Lógica original de los botones, con estilos adaptados */}
         <div className="flex-1 flex items-center justify-end gap-4">
-          {currentUserRole === "visitante" ? (
+          {!mounted ? (
+            // Placeholder de carga mientras hidrata el storage
+            <div className="h-9 w-24 animate-pulse bg-slate-200/20 rounded-full" />
+          ) : currentRole === "visitante" ? (
             <>
               <Link 
                 href="/auth/login" 
@@ -90,11 +106,21 @@ export default function Navbar() {
           ) : (
             <div className="flex items-center gap-3">
               <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded ${isHome ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                {currentUserRole}
+                {currentRole}
               </span>
-              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-200 shadow-sm">
-                {currentUserRole === "admin" ? "A" : "U"}
+              <div 
+                className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs border border-blue-200 shadow-sm tracking-wide"
+                title={user?.name || "Usuario"}
+              >
+                {currentRole === "admin" ? "A" : getInitials(user?.name)}
               </div>
+              <button 
+                onClick={logout}
+                className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${isHome ? 'border-white/30 text-white hover:bg-white/10' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
+                title="Cerrar sesión"
+              >
+                Salir
+              </button>
             </div>
           )}
         </div>

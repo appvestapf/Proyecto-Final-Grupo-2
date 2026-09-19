@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { authService } from '@/services/authService';
 import { Button } from '@/components/common/Button/Button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 import { registerSchema, RegisterFormData } from '@/schemas/authSchema';
@@ -14,7 +13,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const registerAction = useAuthStore((state) => state.register);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -30,12 +29,7 @@ export default function RegisterPage() {
     console.log("DATOS ENVIADOS DESDE EL FRONT:", data);
     setLoading(true);
     try {
-      const response = await authService.register(data);
-      
-      if (response?.user && response?.token) {
-        setAuth(response.user, response.token);
-      }
-      
+      await registerAction(data);
       toast.success('¡Cuenta creada con éxito! Bienvenido a Vesta.');
       router.push('/');
     } catch (err: any) {
