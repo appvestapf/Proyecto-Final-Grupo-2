@@ -3,7 +3,7 @@ import { LoginCredentials, RegisterData, AuthResponse } from '@/interfaces/user'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export const authService = {
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+  async login(credentials: LoginCredentials): Promise<any> {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -17,17 +17,21 @@ export const authService = {
       throw new Error(errorData.message || 'Error al iniciar sesión');
     }
 
-    const data: AuthResponse = await response.json();
+    const data = await response.json();
     
     if (typeof window !== 'undefined') {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
     }
 
     return data;
   },
 
-  async register(userData: RegisterData): Promise<AuthResponse> {
+  async register(userData: RegisterData): Promise<any> {
     const response = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
       headers: {
@@ -41,11 +45,17 @@ export const authService = {
       throw new Error(errorData.message || 'Error al registrar el usuario');
     }
 
-    const data: AuthResponse = await response.json();
+    const data = await response.json();
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
+      
+      const userObj = data.user || data;
+      if (userObj) {
+        localStorage.setItem('user', JSON.stringify(userObj));
+      }
     }
 
     return data;
