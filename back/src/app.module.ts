@@ -7,6 +7,7 @@ import 'dotenv/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { ReservationModule } from './modules/reservations/reservation.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { AppointmentModule } from './modules/appointments/appointment.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     AuthModule,
     ReservationModule,
     PaymentsModule,
+    AppointmentModule
   ],
   controllers: [],
   providers: [],

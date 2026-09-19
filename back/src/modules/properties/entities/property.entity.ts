@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Reservation } from '../../reservations/entities/reservation.entity';
+import { Appointment } from '../../appointments/entities/appointment.entity';
 
 const numericTransformer = {
   to: (value: number) => value,
@@ -76,13 +77,13 @@ export class Property {
 
   @OneToMany(()=> Reservation, (reservation)=> reservation.property)
   reservations: Reservation[];
+
+  @OneToMany(() => Appointment, (appointment) => appointment.property)
+  appointments: Appointment[];
 }
 
 // @ManyToOne(() => User, (user) => user.properties)
 // owner: User;
-
-// @OneToMany(() => Cita, (cita) => cita.property)
-// citas: Cita[];
 
 // @OneToMany(() => PropImage, (propImage) => propImage.property)
 // images: PropImage[];
