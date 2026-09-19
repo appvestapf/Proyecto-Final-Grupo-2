@@ -25,9 +25,19 @@ export class AuthService {
 
         await this.mailService.sendWelcomeEmail(user.email, user.name)
 
+        const payload = {
+            sub: user.id,
+            email: user.email,
+        }
+
+        const accessToken = await this.jwtService.signAsync(payload)
+
         const { password, ...userWithoutPassword } = user
 
-        return userWithoutPassword
+        return {
+            user: userWithoutPassword,
+            access_token: accessToken
+        }
     }
 
     async login(loginDto: LoginDto) {
