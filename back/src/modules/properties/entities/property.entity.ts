@@ -1,6 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  JoinColumn,
+  ManyToOne,
+} from 'typeorm';
 import { Reservation } from '../../reservations/entities/reservation.entity';
 import { Appointment } from '../../appointments/entities/appointment.entity';
+import { User } from '../../users/entities/user.entity';
 
 const numericTransformer = {
   to: (value: number) => value,
@@ -75,15 +83,16 @@ export class Property {
   @Column('text', { array: true, default: [] })
   images: string[];
 
-  @OneToMany(()=> Reservation, (reservation)=> reservation.property)
+  @ManyToOne(() => User, (user) => user.properties, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'ownerId' })
+  owner: User | null;
+
+  @OneToMany(() => Reservation, (reservation) => reservation.property)
   reservations: Reservation[];
 
   @OneToMany(() => Appointment, (appointment) => appointment.property)
   appointments: Appointment[];
 }
-
-// @ManyToOne(() => User, (user) => user.properties)
-// owner: User;
-
-// @OneToMany(() => PropImage, (propImage) => propImage.property)
-// images: PropImage[];
