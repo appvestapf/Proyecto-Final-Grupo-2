@@ -1,11 +1,24 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersRepository } from './users.repository';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
+
+  async uploadPhoto(file: Express.Multer.File): Promise<string> {
+    const result = await this.cloudinaryService.uploadImage(file, 'users');
+    return result.secure_url;
+  }
 
   async create(createUserDto: CreateUserDto) {
     const existing = await this.findByEmail(createUserDto.email);
@@ -17,7 +30,7 @@ export class UsersService {
   }
 
   findAll() {
-    return this.usersRepository.find();
+    return this.usersRepository.find({ where: { isActive: true } });
   }
 
   async findOne(id: string) {
@@ -28,6 +41,13 @@ export class UsersService {
     return user;
   }
 
+  async findOnePublic(id: string) {
+    const user = await this.findOne(id);
+    if (!user.isActive) {
+      throw new NotFoundException(`Usuario ${id} no encontrado`);
+    }
+    return user;
+  }
   findByEmail(email: string) {
     return this.usersRepository.findOneBy({ email });
   }
@@ -40,6 +60,7 @@ export class UsersService {
 
   async remove(id: string) {
     const user = await this.findOne(id);
-    return this.usersRepository.remove(user);
+    user.isActive = false;
+    return this.usersRepository.save(user);
   }
 }
