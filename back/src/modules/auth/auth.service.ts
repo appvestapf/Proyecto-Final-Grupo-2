@@ -45,7 +45,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto) {
+async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
@@ -71,7 +71,12 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(payload);
 
+    // Separo la contraseña para no enviarla al frontend
+    const { password, ...userWithoutPassword } = user;
+
+    // Devolver el token y los datos del usuario
     return {
+      user: userWithoutPassword,
       access_token: accessToken,
     };
   }
