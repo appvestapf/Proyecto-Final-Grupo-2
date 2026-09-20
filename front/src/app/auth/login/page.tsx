@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { authService } from '@/services/authService';
 import { Button } from '@/components/common/Button/Button';
 import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 import { loginSchema, LoginFormData } from '@/schemas/authSchema';
@@ -14,7 +13,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 export default function LoginPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const login = useAuthStore((state) => state.login);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -30,14 +29,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Llamada al servicio de autenticación
-      const response = await authService.login(data);
-      
-      // Si la respuesta incluye usuario y token, los guardamos en el store global de Zustand
-      if (response?.user && response?.token) {
-        setAuth(response.user, response.token);
-      }
-
+      await login(data);
       toast.success('¡Bienvenido de vuelta a Vesta!');
       router.push('/');
     } catch (err: any) {
