@@ -6,8 +6,9 @@ import {
   IsIn,
   IsUrl,
   MaxLength,
+  IsOptional,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePropertyDto {
   @ApiProperty({ example: 'Departamento Palermo', required: true })
@@ -96,4 +97,12 @@ export class CreatePropertyDto {
   @IsArray()
   @IsUrl({}, { each: true })
   images: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Si la propiedad está dada de baja (se usa para reactivarla por PATCH)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDeleted?: boolean;
 }

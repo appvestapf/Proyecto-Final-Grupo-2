@@ -25,7 +25,31 @@ export class PropertiesService {
   }
 
   async findAll(country?: string, city?: string, page?: string) {
-    const where: any = { isAvailable: true };
+    const where: any = { isDeleted: false };
+
+    if (country) {
+      where.country = country;
+    }
+
+    if (city) {
+      where.city = city;
+    }
+
+    const pageNumber = page ? Number(page) : 1;
+    const limit = 10;
+
+    const properties = await this.propertiesRepository.find({
+      where: where,
+      skip: (pageNumber - 1) * limit,
+      take: limit,
+    });
+
+    return properties;
+  }
+
+  async findAllAdmin(country?: string, city?: string, page?: string) {
+    // Sin filtro de isDeleted: el admin ve absolutamente todo.
+    const where: any = {};
 
     if (country) {
       where.country = country;
@@ -61,7 +85,7 @@ export class PropertiesService {
   async findOnePublic(id: string) {
     const property = await this.findOne(id);
 
-    if (!property.isAvailable) {
+    if (property.isDeleted) {
       throw new NotFoundException('No se encontro la propiedad');
     }
 

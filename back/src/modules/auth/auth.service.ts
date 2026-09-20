@@ -33,6 +33,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
+      isAdmin: user.isAdmin,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -109,6 +110,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
+      isAdmin: user.isAdmin,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);

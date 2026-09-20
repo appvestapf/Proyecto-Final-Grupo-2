@@ -77,6 +77,9 @@ export class Property {
   @Column({ default: false })
   hasGarage: boolean;
 
+  @Column({ default: false })
+  isDeleted: boolean;
+
   @Column({ default: true })
   isAvailable: boolean;
 

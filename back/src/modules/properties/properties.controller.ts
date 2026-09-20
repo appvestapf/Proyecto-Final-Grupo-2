@@ -33,6 +33,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional.guard';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -95,6 +96,8 @@ export class PropertiesController {
   }
 
   @Get()
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Listar propiedades, con filtros opcionales' })
   @ApiQuery({
     name: 'country',
@@ -116,17 +119,29 @@ export class PropertiesController {
     @Query('country') country?: string,
     @Query('city') city?: string,
     @Query('page') page?: string,
+    @Req() req?: Request,
   ) {
+    const requester = req?.user as { isAdmin: boolean } | undefined;
+
+    if (requester?.isAdmin) {
+      return this.propertiesService.findAllAdmin(country, city, page);
+    }
     return this.propertiesService.findAll(country, city, page);
   }
 
   @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Buscar una propiedad por id' })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({ status: 200, description: 'Propiedad encontrada' })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Req() req: Request) {
+    const requester = req.user as { isAdmin: boolean } | undefined;
+    if (requester?.isAdmin) {
+      return this.propertiesService.findOne(id);
+    }
     return this.propertiesService.findOnePublic(id);
   }
 
