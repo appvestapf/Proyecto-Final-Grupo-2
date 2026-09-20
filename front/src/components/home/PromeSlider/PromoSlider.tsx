@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const SLIDES = [
   {
@@ -43,20 +44,20 @@ export const PromoSlider = () => {
       
       {/* ================= COLUMNA IZQUIERDA ================= */}
       <div 
-        className="relative w-full lg:w-[45%] h-[420px] lg:h-[460px] bg-cover bg-center transition-all duration-700 ease-in-out"
+        className="relative w-full lg:w-[45%] h-[420px] lg:h-[460px] bg-cover bg-center"
         style={{ backgroundImage: `url('${SLIDES[currentIndex].image}')` }}
       >
-        {/* Tarjeta blanca: textos y paddings reducidos */}
-        <div className="absolute top-0 left-0 lg:top-8 lg:left-8 bg-white p-6 lg:p-8 w-[90%] lg:w-[380px] shadow-lg transition-opacity duration-300">
+        {/* Tarjeta blanca: cambio instantáneo sin transiciones lentas */}
+        <div className="absolute top-0 left-0 lg:top-8 lg:left-8 bg-white p-6 lg:p-8 w-[90%] lg:w-[380px] shadow-lg">
           <h3 className="text-2xl lg:text-3xl font-bold text-base-4 mb-3 leading-tight">
             {SLIDES[currentIndex].title}
           </h3>
           <p className="text-base-3 mb-6 text-sm lg:text-base">
             {SLIDES[currentIndex].description}
           </p>
-          <button className="flex items-center gap-2 font-bold text-base-4 hover:underline cursor-pointer text-sm lg:text-base">
+          <Link href="/catalog" className="flex items-center gap-2 font-bold text-base-4 hover:underline cursor-pointer text-sm lg:text-base w-max">
             {SLIDES[currentIndex].buttonText} <ArrowRight size={16} />
-          </button>
+          </Link>
         </div>
 
         {/* Controles del carrusel */}
@@ -80,7 +81,7 @@ export const PromoSlider = () => {
           {SLIDES.map((_, index) => (
             <div 
               key={index}
-              className={`h-1 w-full rounded-full transition-colors duration-500 ${
+              className={`h-1 w-full rounded-full transition-colors duration-300 ${
                 index === currentIndex ? 'bg-white' : 'bg-white/40'
               }`}
             ></div>
@@ -91,29 +92,27 @@ export const PromoSlider = () => {
       {/* ================= COLUMNA DERECHA ================= */}
       <div className="w-full lg:w-[55%] bg-[#DFE4D6] p-8 lg:p-12 flex flex-col justify-center relative overflow-hidden lg:h-[460px]">
         
-        {/* Contenedor del texto: más angosto (max-w-[400px]) para que no llegue a las llaves */}
         <div className="relative z-10 w-full max-w-[400px]">
-          {/* Título más chico (text-3xl en vez de 4xl) */}
           <h2 className="text-2xl lg:text-3xl font-bold text-base-4 mb-4 leading-tight">
             Alquilar tu inmueble y tener un rincón solo tuyo
           </h2>
           
-          {/* Párrafo más chico y con menos margen inferior */}
           <p className="text-base-4/80 mb-6 text-sm lg:text-base">
             Cuenta con nuestros asesores para conseguir las mejores condiciones, resolver todas tus dudas y tener soporte durante todo el proceso.
           </p>
           
-          {/* Botón con menos padding (py-2.5 px-6) y letra más chica */}
-          <button className="bg-white text-base-4 font-bold text-sm lg:text-base py-2.5 px-6 rounded-full w-max shadow-sm hover:shadow-md transition-all mb-5 cursor-pointer">
+          {/* Botón convertido a Link hacia el catálogo */}
+          <Link href="/catalog" className="inline-block bg-white text-base-4 font-bold text-sm lg:text-base py-2.5 px-6 rounded-full w-max shadow-sm hover:shadow-md transition-all mb-5 cursor-pointer">
             Ver departamentos en alquiler
-          </button>
+          </Link>
           
-          <button className="flex items-center gap-2 font-bold text-base-4 hover:underline w-max cursor-pointer text-sm lg:text-base">
+          {/* Enlace a la futura página de ayuda */}
+          <Link href="/ayuda" className="flex items-center gap-2 font-bold text-base-4 hover:underline w-max cursor-pointer text-sm lg:text-base">
             Cómo alquilar en Vesta <ArrowRight size={16} />
-          </button>
+          </Link>
         </div>
 
-        {/* Imagen de las llaves: Reducida a 200px y pegada a la esquina */}
+        {/* Imagen de las llaves */}
         <div className="absolute bottom-0 right-0 lg:bottom-4 lg:right-4 w-[160px] h-[160px] lg:w-[200px] lg:h-[200px] pointer-events-none">
            <Image 
              src="/gestures-receiving-keys.webp" 
