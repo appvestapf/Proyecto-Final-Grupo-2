@@ -1,10 +1,10 @@
-import {Body,Controller,Get,Post, Req, UseGuards,} from '@nestjs/common';
+import {Body,Controller,Get,Post, Req, Res, UseGuards,} from '@nestjs/common';
 import {ApiOperation,ApiResponse, ApiTags} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { GoogleUser } from './interfaces/google-user.interface';
 
 @ApiTags('Auth')
@@ -74,11 +74,12 @@ export class AuthController {
         summary: 'Callback de Google OAuth (uso interno, no se llama directamente)',
     })
     @ApiResponse({
-        status: 200,
-        description: 'Login con Google exitoso',
+        status: 302,
+        description: 'Redirige al front luego del login con Google',
     })
     @UseGuards(AuthGuard('google'))
-    googleAuthCallback(@Req() req: Request){
-        return this.authService.googleLogin(req.user as GoogleUser)
+    async googleAuthCallback(@Req() req: Request,@Res() res: Response){
+        const result = await this.authService.googleLogin(req.user as GoogleUser)
+        return res.redirect(`${process.env.FRONTEND_URL}/?token=${result.access_token}`)
     }
 }
