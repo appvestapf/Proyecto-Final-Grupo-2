@@ -37,7 +37,7 @@ export const Hero = () => {
       {/* Contenedor del contenido */}
       <div className="relative z-10 w-full max-w-5xl flex flex-col items-start text-left mt-4">
         
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6 drop-shadow-lg max-w-3xl">
+       <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6 drop-shadow-lg max-w-3xl font-serif tracking-tight">
           Tu próximo hogar.<br />
           Por días o por años.
         </h1>
