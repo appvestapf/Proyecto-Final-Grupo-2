@@ -36,7 +36,7 @@ export class PropertiesService {
     }
 
     const pageNumber = page ? Number(page) : 1;
-    const limit = 10;
+    const limit = 20;
 
     const properties = await this.propertiesRepository.find({
       where: where,
