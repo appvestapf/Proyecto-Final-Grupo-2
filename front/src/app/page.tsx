@@ -2,6 +2,7 @@ import { Hero } from '@/components/home/Hero/Hero';
 import { FeaturedRow } from '@/components/home/FeaturedRow/FeaturedRow'; // Ajusta la ruta si es necesario
 import { PromoSlider } from '@/components/home/PromeSlider/PromoSlider';
 import { propertyService } from '@/services/propertyService';
+import { PopularDestination } from '@/components/home/PopularDestination/PopularDestination';
 
 export default async function Home() {
   const properties = await propertyService.getProperties();
@@ -12,7 +13,7 @@ export default async function Home() {
   return (
     <main className="flex flex-col min-h-screen bg-base-1">
       <Hero />      
-      <div className="py-12">
+      <div className="py-6">
         {destacadosTemporarios.length > 0 && (
           <FeaturedRow 
             title="Alojamientos populares por días" 
@@ -26,6 +27,7 @@ export default async function Home() {
           />
         )}
       </div>
+      <PopularDestination/>
       <PromoSlider/>
     </main>
   );
