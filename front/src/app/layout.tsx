@@ -1,35 +1,34 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import { Toaster } from 'sonner';
 import "./globals.css";
 import Navbar from "../components/navbar/navbar";
 import Footer from "../components/footer/footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontSans = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fontDisplay = Outfit({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Vesta",
-  description: "Catálogo global de alquileres permanentes y temporarios en Latam. Explora propiedades, agenda visitas o reserva online sin intermediarios. ¡Tu hogar ideal está aquí!",
+  title: "Vesta | Plataforma Inmobiliaria",
+  description: "Catálogo global de alquileres permanentes y temporarios en Latam. Explora propiedades, agenda visitas o reserva online sin intermediarios.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode;}) {
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen flex flex-col antialiased bg-slate-50 text-slate-900`}
+        className={`${fontSans.variable} ${fontDisplay.variable} font-sans min-h-screen flex flex-col antialiased text-slate-900`}
       >
         <Navbar />
         {children}
         <Footer />
-        {/* Notificaciones flotantes globales */}
         <Toaster richColors position="bottom-center" />
       </body>
     </html>
