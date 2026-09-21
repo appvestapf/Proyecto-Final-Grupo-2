@@ -34,4 +34,12 @@ export class ReservationService {
 
         return savedReservation;
     }
+async findByUser(userId: string) {
+        return this.reservationsRepository.find({
+            where: { userId },
+            relations: { property: true }, 
+            order: { createdAt: 'DESC' }
+        });
+    }
 }
+

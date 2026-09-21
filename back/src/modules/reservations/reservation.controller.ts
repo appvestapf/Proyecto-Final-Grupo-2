@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Post, Get, Req, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ReservationService } from "./reservation.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
 import { Request } from "express";
@@ -13,9 +13,18 @@ export class ReservationController {
     @Post()
     @ApiBearerAuth()
     @UseGuards(AuthGuard('jwt'))
+    @ApiOperation({ summary: 'Crear una nueva reserva' })
     create(@Body() createReservationDto: CreateReservationDto, @Req() req: Request){
         const user = req.user as {id: string}
-
         return this.reservationService.createReservation(createReservationDto, user.id)
+    }
+
+    @Get('me')
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard('jwt'))
+    @ApiOperation({ summary: 'Obtener todas las reservas del usuario logueado' })
+    findMyReservations(@Req() req: Request) {
+        const user = req.user as { id: string };
+        return this.reservationService.findByUser(user.id);
     }
 }

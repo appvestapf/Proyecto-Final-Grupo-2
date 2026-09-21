@@ -1,35 +1,44 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'
 import Image from 'next/image';
-import { Calendar, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
-
-// Mock de reservas del usuario para la maquetación
-const mockReservas = [
-  {
-    id: 'RES-001',
-    propertyName: 'Departamento luminoso con balcón en Palermo',
-    location: 'Palermo Soho, Buenos Aires',
-    image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d',
-    checkIn: '12 Oct 2026',
-    checkOut: '18 Oct 2026',
-    status: 'Confirmada',
-    total: 468
-  },
-  {
-    id: 'RES-002',
-    propertyName: 'Casa Nueva Córdoba',
-    location: 'Córdoba, Argentina',
-    image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d',
-    checkIn: '01 Nov 2026',
-    checkOut: '31 Dic 2026',
-    status: 'Pendiente de pago',
-    total: 2200
-  }
-];
+import { useAuthStore } from '@/store/useAuthStore';
+import { reservationService } from '@/services/reservationService';
 
 export default function MisAlquileresPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'activas' | 'historial'>('activas');
+  const [reservas, setReservas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Extraemos el token del estado global (Zustand)
+  const { token, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const fetchReservations = async () => {
+      if (!isAuthenticated || !token) {
+        setLoading(false);
+        return;
+      }
+      
+      const data = await reservationService.getMyReservations(token);
+      setReservas(data);
+      setLoading(false);
+    };
+
+    fetchReservations();
+  }, [token, isAuthenticated]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-slate-500">
+        <Loader2 className="animate-spin" size={40} />
+        <p>Cargando tus reservas...</p>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 py-10 px-4">
@@ -49,34 +58,32 @@ export default function MisAlquileresPage() {
               activeTab === 'activas' ? 'text-primary' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            Reservas Activas
+            Mis Reservas
             {activeTab === 'activas' && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>
-            )}
-          </button>
-          <button 
-            onClick={() => setActiveTab('historial')}
-            className={`pb-4 text-sm font-semibold transition-colors relative ${
-              activeTab === 'historial' ? 'text-primary' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Historial
-            {activeTab === 'historial' && (
               <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>
             )}
           </button>
         </div>
 
-        {/* Lista de Reservas */}
+        {/* Lista de Reservas Vacía */}
+  {reservas.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-slate-500 font-medium">Aún no tienes reservas registradas.</p>
+            <Button variant="outline" className="mt-4" onClick={() => router.push('/catalog')}>
+              Explorar propiedades
+            </Button>
+          </div>
+        )}
+        {/* Lista de Reservas con Datos Reales */}
         <div className="space-y-6">
-          {mockReservas.map((reserva) => (
+          {reservas.map((reserva) => (
             <div key={reserva.id} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
               
-              {/* Imagen */}
-              <div className="relative w-full md:w-48 h-48 md:h-auto rounded-xl overflow-hidden shrink-0">
+              {/* Imagen (Viene de la relación con Property) */}
+              <div className="relative w-full md:w-48 h-48 md:h-auto rounded-xl overflow-hidden shrink-0 bg-slate-100">
                 <Image 
-                  src={reserva.image} 
-                  alt={reserva.propertyName} 
+                  src={reserva.property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} 
+                  alt={reserva.property.name} 
                   fill 
                   className="object-cover"
                 />
@@ -86,33 +93,33 @@ export default function MisAlquileresPage() {
               <div className="flex-1 flex flex-col justify-between">
                 <div>
                   <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                    <h3 className="text-lg font-bold text-slate-900">{reserva.propertyName}</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{reserva.property.name}</h3>
+                    
+                    {/* Badge de Estado Dinámico */}
                     <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1 ${
-                      reserva.status === 'Confirmada' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      reserva.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
+                      reserva.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      'bg-amber-100 text-amber-700'
                     }`}>
-                      {reserva.status === 'Confirmada' ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                      {reserva.status}
+                      {reserva.status === 'confirmed' ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                      {reserva.status === 'pending' ? 'Pendiente' : reserva.status === 'confirmed' ? 'Confirmada' : 'Cancelada'}
                     </span>
                   </div>
                   
                   <p className="text-sm text-slate-500 flex items-center gap-2 mb-4">
-                    <MapPin size={16} /> {reserva.location}
+                    <MapPin size={16} /> {reserva.property.city}, {reserva.property.country}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <div className="flex items-center gap-2">
                       <Calendar size={18} className="text-slate-400" />
                       <div className="text-sm">
-                        <p className="text-slate-500 text-xs font-medium uppercase">Check-in</p>
-                        <p className="font-semibold text-slate-900">{reserva.checkIn}</p>
-                      </div>
-                    </div>
-                    <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={18} className="text-slate-400" />
-                      <div className="text-sm">
-                        <p className="text-slate-500 text-xs font-medium uppercase">Check-out</p>
-                        <p className="font-semibold text-slate-900">{reserva.checkOut}</p>
+                        <p className="text-slate-500 text-xs font-medium uppercase">Fecha de Solicitud</p>
+                        <p className="font-semibold text-slate-900">
+                          {new Date(reserva.createdAt).toLocaleDateString('es-AR', {
+                            year: 'numeric', month: 'short', day: 'numeric'
+                          })}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -120,12 +127,14 @@ export default function MisAlquileresPage() {
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-100">
                   <p className="text-lg font-bold text-slate-900">
-                    Total: US$ {reserva.total}
+                    Total: US$ {reserva.property.price} <span className="text-sm font-normal text-slate-500">/ {reserva.property.priceUnit}</span>
                   </p>
                   <div className="flex gap-3 w-full sm:w-auto">
-                    <Button variant="outline" className="flex-1 sm:flex-none">Ver detalles</Button>
-                    {reserva.status === 'Pendiente de pago' && (
-                      <Button variant="primary" className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700">Pagar ahora</Button>
+                    {/* Botón condicional para pagos pendientes */}
+                    {reserva.status === 'pending' && (
+                       <p className="text-xs text-amber-600 font-medium flex items-center">
+                         Falta completar el pago en Mercado Pago
+                       </p>
                     )}
                   </div>
                 </div>
