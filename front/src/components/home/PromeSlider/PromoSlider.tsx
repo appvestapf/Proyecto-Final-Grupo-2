@@ -10,21 +10,24 @@ const SLIDES = [
     title: "Casas en alquiler",
     description: "Encuentra casas para alquilar y ten un rincón solo tuyo.",
     buttonText: "Ver casas en alquiler",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9",
+    href: "/catalog?location=casa" // <-- Busca la palabra "casa" en el título
   },
   {
     id: 2,
     title: "Departamentos céntricos",
     description: "Vive cerca de todo con nuestra selección exclusiva de departamentos.",
     buttonText: "Ver departamentos",
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267",
+    href: "/catalog?location=departamento" // <-- Busca "departamento" en el título
   },
   {
     id: 3,
     title: "Alquileres temporarios",
     description: "Espacios amoblados perfectos para estancias cortas y viajes de trabajo.",
     buttonText: "Ver temporarios",
-    image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688"
+    image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688",
+    href: "/catalog?rentalType=Temporario" // <-- Filtro real del catálogo
   }
 ];
 
@@ -55,7 +58,7 @@ export const PromoSlider = () => {
           <p className="text-base-3 mb-6 text-sm lg:text-base">
             {SLIDES[currentIndex].description}
           </p>
-          <Link href="/catalog" className="flex items-center gap-2 font-bold text-base-4 hover:underline cursor-pointer text-sm lg:text-base w-max">
+          <Link href={SLIDES[currentIndex].href} className="flex items-center gap-2 font-bold text-slate-900 hover:underline cursor-pointer text-sm lg:text-base w-max">
             {SLIDES[currentIndex].buttonText} <ArrowRight size={16} />
           </Link>
         </div>
@@ -102,7 +105,7 @@ export const PromoSlider = () => {
           </p>
           
           {/* Botón convertido a Link hacia el catálogo */}
-          <Link href="/catalog" className="inline-block bg-white text-base-4 font-bold text-sm lg:text-base py-2.5 px-6 rounded-full w-max shadow-sm hover:shadow-md transition-all mb-5 cursor-pointer">
+          <Link href="/catalog?location=departamento" className="inline-block bg-white text-base-4 font-bold text-sm lg:text-base py-2.5 px-6 rounded-full w-max shadow-sm hover:shadow-md transition-all mb-5 cursor-pointer">
             Ver departamentos en alquiler
           </Link>
           

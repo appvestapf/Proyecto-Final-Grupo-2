@@ -7,7 +7,6 @@ import { Property } from '@/interfaces/property';
 import { propertyService } from '@/services/propertyService';
 import { useSearchParams } from 'next/navigation';
 
-// Envolvemos el contenido en un sub-componente para poder usar useSearchParams de forma segura en Next.js
 function CatalogContent() {
   const searchParams = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
@@ -15,19 +14,22 @@ function CatalogContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  useEffect(() => {
+useEffect(() => {
     const fetchData = async () => {
-      // 1. Traemos todas las propiedades del backend
       const data = await propertyService.getProperties();
       setProperties(data);
 
-      // 2. Leemos qué viene en la URL desde el Hero
       const urlLocation = searchParams.get('location');
       const urlCapacity = searchParams.get('capacity');
+      const urlRentalType = searchParams.get('rentalType');
+
+      // --- 🔍 INICIO DE DIAGNÓSTICO ---
+      console.log("🔍 1. Parámetro en URL (urlRentalType):", urlRentalType);
+      console.log("🔍 2. Primera propiedad del backend:", data[0]?.name, "| Tipo:", data[0]?.rentalType);
+      // --- FIN DE DIAGNÓSTICO ---
 
       let result = data;
 
-      // 3. Si alguien escribió un destino en el Hero, filtramos de entrada
       if (urlLocation) {
         result = result.filter(p => 
           p.location.toLowerCase().includes(urlLocation.toLowerCase()) ||
@@ -35,14 +37,25 @@ function CatalogContent() {
         );
       }
 
-      // 4. Si buscaron por cantidad de personas, filtramos también
       if (urlCapacity) {
         const cap = parseInt(urlCapacity, 10);
         result = result.filter(p => p.capacity >= cap);
       }
 
-      // Guardamos el resultado final
+      if (urlRentalType) {
+        result = result.filter(p => {
+          const match = p.rentalType?.toLowerCase() === urlRentalType.toLowerCase();
+          // Log para ver si las palabras son exactamente iguales o si hay espacios invisibles
+          if (!match) {
+            console.log(`❌ Filtrado descarta: '${p.rentalType}' (BD) vs '${urlRentalType}' (URL)`);
+          }
+          return match;
+        });
+        console.log("🔍 3. Resultados que sobrevivieron al filtro:", result.length);
+      }
+
       setFilteredProperties(result);
+      setCurrentPage(1);
     };
     fetchData();
   }, [searchParams]);
@@ -72,7 +85,7 @@ function CatalogContent() {
     }
 
     setFilteredProperties(result);
-    setCurrentPage(1); // Reset al paginado al filtrar
+    setCurrentPage(1); 
   };
 
   const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
@@ -81,12 +94,10 @@ function CatalogContent() {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <h1 className="text-3xl font-bold text-base-4 mb-8 text-center">Catálogo de Inmuebles</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-8 text-center">Catálogo de Inmuebles</h1>
       
-      {/* Barra de búsqueda integrada */}
       <SearchBar onSearch={handleSearch} />
 
-      {/* Grilla de resultados */}
       {currentItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
           {currentItems.map((property) => (
@@ -94,7 +105,7 @@ function CatalogContent() {
           ))}
         </div>
       ) : (
-        <p className="text-center text-base-3 py-10">No se encontraron inmuebles con los filtros seleccionados.</p>
+        <p className="text-center text-slate-500 py-10">No se encontraron inmuebles con los filtros seleccionados.</p>
       )}
 
       {totalPages > 1 && (
@@ -109,12 +120,10 @@ function CatalogContent() {
   );
 }
 
-// Componente principal de la página
 export default function CatalogPage() {
   return (
-    <main className="min-h-screen bg-base-2/20 py-10 px-4">
-      {/* Suspense es requerido por Next.js al usar useSearchParams */}
-      <Suspense fallback={<p className="text-center mt-10">Cargando catálogo...</p>}>
+    <main className="min-h-screen bg-transparent py-10 px-4">
+      <Suspense fallback={<p className="text-center mt-10 text-slate-500">Cargando catálogo...</p>}>
         <CatalogContent />
       </Suspense>
     </main>
