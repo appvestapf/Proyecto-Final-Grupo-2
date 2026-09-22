@@ -39,12 +39,11 @@ export default function Navbar() {
   // Si aún no se montó en el cliente, renderizamos una versión neutra para evitar parpadeos
   const currentRole = mounted ? role : "visitante";
 
-  const allowedItems = NavItems.filter((item) =>
+const allowedItems = NavItems.filter((item) =>
     item.roles.includes(currentRole) &&
-    item.nameToRender !== "Inicio" &&
-    item.nameToRender !== "Explorar Propiedades"
+    item.nameToRender !== "Inicio" // Quitamos la restricción del catálogo
   );
-
+  
   const isHome = pathname === '/';
 
   const wrapperStyles = isHome

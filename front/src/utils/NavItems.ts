@@ -8,11 +8,11 @@ export const NavItems = [
     route: PATHROUTES.LANDING,
     roles: ["visitante", "inquilino", "admin"],
   },
-  {
+{
     id: 2,
-    nameToRender: "Explorar Propiedades",
+    nameToRender: "Explorar Propiedades", 
     route: PATHROUTES.HOME,
-    roles: ["visitante", "inquilino", "admin"],
+    roles: ["visitante", "inquilino",],
   },
 
   // --- RUTAS EXCLUSIVAS DEL INQUILINO (Usuario Registrado) ---
