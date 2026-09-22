@@ -61,6 +61,33 @@ export const authService = {
     return data;
   },
 
+<<<<<<< Updated upstream
+=======
+  async getProfile(): Promise<any> {
+      const token = this.getToken();  
+      if (!token) {
+          throw new Error('No hay token disponible');
+      }
+  
+      const response = await fetch(`${API_URL}/users/profile`, {
+          method: 'GET',
+          headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+          },
+      });
+  
+      const responseText = await response.text();
+  
+      if (!response.ok) {
+          throw new Error('Error al obtener el perfil del usuario');
+      }
+  
+      return JSON.parse(responseText);
+  },
+  
+
+>>>>>>> Stashed changes
   logout(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
