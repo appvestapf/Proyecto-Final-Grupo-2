@@ -166,4 +166,20 @@ export class UsersController {
     }
     return this.usersService.remove(id);
   }
+  @Get('profile')
+  @ApiBearerAuth()
+  @ApiOperation({summary:'Obtener el perfil del usuario autenticado'})
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil obtenido correctamente'
+  })
+  @ApiResponse({
+    status:401,
+    description:'Token invalido o no proporcionado'
+  })
+  @UseGuards(AuthGuard('jwt'))
+  async getProfile(@Req() req: Request){
+    const user = req.user as {id: string}
+    return this.usersService.findProfileById(user.id)
+  }
 }
