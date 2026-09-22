@@ -34,6 +34,8 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      name: user.name,
+      pfp: user.pfp
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -68,6 +70,8 @@ async login(loginDto: LoginDto) {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      name: user.name,
+      pfp: user.pfp
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -116,11 +120,14 @@ async login(loginDto: LoginDto) {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      name: user.name,
+      pfp: user.pfp
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
+      user: user,
       access_token: accessToken,
     };
   }

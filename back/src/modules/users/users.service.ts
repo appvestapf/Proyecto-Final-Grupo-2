@@ -63,4 +63,17 @@ export class UsersService {
     user.isActive = false;
     return this.usersRepository.save(user);
   }
+
+  async findProfileById(id:string){
+    const user = await this.usersRepository.findOne({where: {id}})
+    if(!user) throw new NotFoundException('Usuario no encontrado')
+    return {
+      id:user.id,
+      name:user.name,
+      email:user.email,
+      address: user.address,
+      isAdmin: user.isAdmin,
+      pfp: user.pfp
+    }
+  }
 }
