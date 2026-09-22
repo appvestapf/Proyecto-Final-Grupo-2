@@ -16,7 +16,6 @@ export default function AdminPropertiesPage() {
   
   const { token, role } = useAuthStore();
 
-  // Estados del Formulario (Tu lógica original)
   const [files, setFiles] = useState<FileList | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +31,8 @@ export default function AdminPropertiesPage() {
     area: '',
     isPetFriendly: false,
     hasGarage: false,
+    lat: -34.5889, // Valores por defecto para cumplir con el validador
+    lng: -58.4309,
   });
 
   const fetchProperties = async () => {
@@ -52,7 +53,6 @@ export default function AdminPropertiesPage() {
     }
   }, [token, role]);
 
-  // Manejadores del Formulario (Tu lógica original)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
@@ -73,47 +73,83 @@ export default function AdminPropertiesPage() {
     setLoadingForm(true);
 
     try {
-      const dataToSend = new FormData();
-      Object.keys(formData).forEach(key => {
-        dataToSend.append(key, String(formData[key as keyof typeof formData]));
-      });
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      let uploadedImageUrls: string[] = [];
 
-      if (files) {
+      // PASO A: Subir las imágenes a Cloudinary
+      if (files && files.length > 0) {
+        const imageFormData = new FormData();
         for (let i = 0; i < files.length; i++) {
-          dataToSend.append('images', files[i]);
+          imageFormData.append('images', files[i]);
         }
+
+        const uploadResponse = await fetch(`${API_URL}/properties/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}` 
+          },
+          body: imageFormData
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Error al subir las imágenes a Cloudinary');
+        }
+
+        const uploadData = await uploadResponse.json();
+        uploadedImageUrls = uploadData.urls;
       }
 
-      // IMPORTANTE: Asegúrate de que esta ruta coincida con tu backend
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      // PASO B: Preparar el payload JSON
+      const propertyPayload = {
+        name: formData.name,
+        description: formData.description,
+        country: formData.country,
+        city: formData.city,
+        price: Number(formData.price),
+        priceUnit: formData.priceUnit,
+        rentalType: formData.rentalType,
+        capacity: Number(formData.capacity),
+        rooms: Number(formData.rooms),
+        bathrooms: Number(formData.bathrooms),
+        area: Number(formData.area),
+        isPetFriendly: formData.isPetFriendly,
+        hasGarage: formData.hasGarage,
+        lat: Number(formData.lat),
+        lng: Number(formData.lng),
+        isAvailable: true,
+        images: uploadedImageUrls 
+      };
+
+      // PASO C: Crear la propiedad
       const response = await fetch(`${API_URL}/properties`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}` // Cloudinary/Multer usa form-data, no 'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
         },
-        body: dataToSend
+        body: JSON.stringify(propertyPayload)
       });
 
       if (!response.ok) {
-        throw new Error('Error al crear la propiedad');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al crear la propiedad en la base de datos');
       }
 
       toast.success('¡Propiedad publicada con éxito!');
       
-      // Limpiar formulario
       setFormData({
         name: '', description: '', country: '', city: '', price: '', priceUnit: 'noche',
         rentalType: 'Temporario', capacity: '', rooms: '', bathrooms: '', area: '',
-        isPetFriendly: false, hasGarage: false,
+        isPetFriendly: false, hasGarage: false, lat: -34.5889, lng: -58.4309
       });
       setFiles(null);
       
-      // Volver a cargar la lista y cambiar a la pestaña
       await fetchProperties();
       setActiveTab('list');
 
     } catch (error: any) {
-      toast.error(error.message || 'Error al publicar la propiedad');
+      const errorMsg = Array.isArray(error.message) ? error.message.join(', ') : error.message;
+      toast.error(errorMsg || 'Error al publicar la propiedad');
     } finally {
       setLoadingForm(false);
     }
@@ -121,7 +157,6 @@ export default function AdminPropertiesPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Header y Navegación de Pestañas */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Gestión de Propiedades</h1>
@@ -152,7 +187,6 @@ export default function AdminPropertiesPage() {
         </div>
       </div>
 
-      {/* PESTAÑA 1: LISTA DE PROPIEDADES */}
       {activeTab === 'list' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           {loadingList ? (
@@ -228,7 +262,6 @@ export default function AdminPropertiesPage() {
         </div>
       )}
 
-      {/* PESTAÑA 2: FORMULARIO DE CREACIÓN */}
       {activeTab === 'create' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
           <div className="mb-8">
@@ -238,13 +271,11 @@ export default function AdminPropertiesPage() {
           
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Fila 1: Título */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Título de la publicación</label>
                 <input type="text" name="name" value={formData.name} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Loft luminoso en Palermo" />
               </div>
 
-              {/* Fila 2: Ubicación */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">País</label>
                 <input type="text" name="country" value={formData.country} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Argentina" />
@@ -254,7 +285,6 @@ export default function AdminPropertiesPage() {
                 <input type="text" name="city" value={formData.city} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Buenos Aires" />
               </div>
 
-              {/* Fila 3: Precio, Unidad y Tipo */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Precio (USD)</label>
                 <input type="number" name="price" value={formData.price} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: 1200" />
@@ -276,7 +306,6 @@ export default function AdminPropertiesPage() {
                 </div>
               </div>
 
-              {/* Fila 4: Características */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Huéspedes</label>
@@ -298,7 +327,6 @@ export default function AdminPropertiesPage() {
                 </div>
               </div>
 
-              {/* Checkboxes */}
               <div className="md:col-span-2 flex gap-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" name="isPetFriendly" checked={formData.isPetFriendly} onChange={handleInputChange} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
@@ -310,13 +338,11 @@ export default function AdminPropertiesPage() {
                 </label>
               </div>
 
-              {/* Descripción */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción</label>
                 <textarea name="description" value={formData.description} onChange={handleInputChange} required rows={4} className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none resize-none text-sm" placeholder="Describe las comodidades..." />
               </div>
 
-              {/* Subida de Imágenes */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Imágenes del inmueble</label>
                 <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative">
