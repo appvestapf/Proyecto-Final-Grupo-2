@@ -61,6 +61,26 @@ export const authService = {
     return data;
   },
 
+  
+  async getProfile(): Promise<any> {
+    const token = this.getToken();
+    if (!token) throw new Error('No hay token disponible');
+
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al obtener el perfil del usuario');
+    }
+
+    return await response.json();
+  },
+
   logout(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
