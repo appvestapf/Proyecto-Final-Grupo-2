@@ -73,10 +73,10 @@ const allowedItems = NavItems.filter((item) =>
         <div className="absolute left-1/2 -translate-x-1/2">
           <Link href="/">
             <Image 
-              src="/logo2.png"  
+              src="/logo3.png"  
               alt="Vesta Logo" 
-              width={70} 
-              height={35} 
+              width={81} 
+              height={30} 
               className="object-contain"
               priority
             />
