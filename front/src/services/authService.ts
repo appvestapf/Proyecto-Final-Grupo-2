@@ -61,8 +61,6 @@ export const authService = {
     return data;
   },
 
-<<<<<<< Updated upstream
-=======
   async getProfile(): Promise<any> {
       const token = this.getToken();  
       if (!token) {
@@ -85,9 +83,7 @@ export const authService = {
   
       return JSON.parse(responseText);
   },
-  
 
->>>>>>> Stashed changes
   logout(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
