@@ -75,8 +75,8 @@ const allowedItems = NavItems.filter((item) =>
             <Image 
               src="/logo3.png"  
               alt="Vesta Logo" 
-              width={81} 
-              height={30} 
+              width={85} 
+              height={20} 
               className="object-contain"
               priority
             />
