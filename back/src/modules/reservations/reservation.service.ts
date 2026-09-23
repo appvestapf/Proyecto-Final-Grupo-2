@@ -16,13 +16,13 @@ export class ReservationService {
     private async hasDateConflict(propertyId:string,startDate:string,endDate:string):Promise<Boolean>{
         const conflictingReservation = 
             await this.reservationsRepository.createQueryBuilder('reservation').where(
-                'reservation.propertyId = :propertyId', {propertyId}
+                '"reservation"."propertyId" = :propertyId', {propertyId}
             ).andWhere(
-                'reservation.status IN (:...statuses)',{statuses: [ReservationStatus.PENDING,ReservationStatus.CONFIRMED],}
+                '"reservation"."status" IN (:...statuses)',{statuses: [ReservationStatus.PENDING,ReservationStatus.CONFIRMED],}
             ).andWhere(
-                'reservation.startDate<= :endDate',{endDate}
+                '"reservation"."startDate"<= :endDate',{endDate}
             ).andWhere(
-                'reservation.endDate>= :startDate',{startDate}
+                '"reservation"."endDate">= :startDate',{startDate}
             ).getOne();
         
         return !!conflictingReservation;
