@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { Toaster } from 'sonner';
 import "./globals.css";
-import Navbar from "../components/navbar/navbar";
-import Footer from "../components/footer/footer";
+import ClientLayout from "@/components/layout/ClientLayout";
 
 const fontSans = Inter({
   variable: "--font-sans",
@@ -20,15 +19,15 @@ export const metadata: Metadata = {
   description: "Catálogo global de alquileres permanentes y temporarios en Latam. Explora propiedades, agenda visitas o reserva online sin intermediarios.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode;}) {
+export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
     <html lang="es">
       <body
         className={`${fontSans.variable} ${fontDisplay.variable} font-sans min-h-screen flex flex-col antialiased text-slate-900`}
       >
-        <Navbar />
-        {children}
-        <Footer />
+        <ClientLayout>
+          {children}
+        </ClientLayout>
         <Toaster richColors position="bottom-center" />
       </body>
     </html>
