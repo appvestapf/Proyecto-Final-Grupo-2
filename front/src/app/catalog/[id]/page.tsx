@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { propertyService } from '@/services/propertyService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
-import { Users, Bed, Bath, Scaling, CheckCircle2, Heart, Share, MessageCircle, Loader2, X } from 'lucide-react';
+import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
 
@@ -18,9 +18,11 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
-  
-  // Nuevo estado para controlar la visibilidad de la galería
   const [showGallery, setShowGallery] = useState(false);
+
+  // Estados para las fechas
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -35,7 +37,6 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     fetchProperty();
   }, [resolvedParams.id, router]);
 
-  // Bloquear el scroll del fondo cuando la galería está abierta
   useEffect(() => {
     if (showGallery) {
       document.body.style.overflow = 'hidden';
@@ -47,6 +48,18 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     };
   }, [showGallery]);
 
+  const calculateNights = () => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const nights = property?.rentalType === 'Temporario' ? calculateNights() : 1;
+  const totalPrice = property ? (property.rentalType === 'Temporario' ? property.price * (nights || 1) : property.price) : 0;
+
   const handleReservation = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para solicitar una reserva');
@@ -54,32 +67,62 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       return;
     }
 
+    if (property?.rentalType === 'Temporario') {
+      if (!startDate || !endDate) {
+        toast.error('Por favor selecciona las fechas de llegada y salida');
+        return;
+      }
+      if (nights < 1) {
+        toast.error('La fecha de salida debe ser posterior a la llegada');
+        return;
+      }
+    }
+
     setProcessingPayment(true);
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
+      const payload: any = { propertyId: property?.id };
+      
+      if (property?.rentalType === 'Temporario') {
+        payload.startDate = startDate;
+        payload.endDate = endDate;
+      }
+
+      // 1. Crear Reserva
       const resResponse = await fetch(`${API_URL}/reservations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ propertyId: property?.id })
+        body: JSON.stringify(payload)
       });
 
-      if (!resResponse.ok) throw new Error('La propiedad no está disponible o hubo un error');
+      if (!resResponse.ok) {
+        const errorData = await resResponse.json().catch(() => ({}));
+        const serverMessage = Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
+        throw new Error(serverMessage || 'Error al crear la reserva en el servidor');
+      }
+      
       const reservation = await resResponse.json();
 
+      // 2. Crear Pago y redirigir a MP
       const payResponse = await fetch(`${API_URL}/payments/${reservation.id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!payResponse.ok) throw new Error('Error al generar la orden de pago');
+      if (!payResponse.ok) {
+        const errorData = await payResponse.json().catch(() => ({}));
+        const serverMessage = Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
+        throw new Error(serverMessage || 'Error al generar la orden de pago');
+      }
+      
       const payment = await payResponse.json();
-
-      toast.success('Redirigiendo a Mercado Pago...');
+      
+      toast.success('¡Reserva creada! Redirigiendo a Mercado Pago...');
       window.location.href = payment.paymentUrl;
 
     } catch (error: any) {
@@ -102,10 +145,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-{/* ================= GALERÍA FULLSCREEN (MODAL) ================= */}
       {showGallery && (
         <div className="fixed inset-0 z-[9999] bg-white overflow-y-auto">
-          {/* Header pegajoso con botón de cierre */}
           <div className="sticky top-0 w-full bg-white/90 backdrop-blur-md z-[9999] py-4 px-6 flex justify-end shadow-sm">
             <button 
               onClick={() => setShowGallery(false)} 
@@ -116,27 +157,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
           </div>
           
           <div className="max-w-5xl mx-auto px-4 pb-20 pt-4">
-            {/* Título de la galería */}
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">{property.title}</h2>
               <p className="text-slate-500">{property.capacity} huéspedes • {property.rooms} dorm. • {property.bathrooms} baños</p>
             </div>
             
-            {/* Grilla de imágenes estilo Masonry */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {property.images.map((img, idx) => (
-                <div 
-                  key={idx} 
-                  className={`relative w-full h-[300px] md:h-[450px] ${
-                    idx % 3 === 0 ? 'md:col-span-2 md:h-[600px]' : ''
-                  }`}
-                >
-                  <Image 
-                    src={img} 
-                    alt={`${property.title} - foto ${idx + 1}`} 
-                    fill 
-                    className="object-cover rounded-xl"
-                  />
+                <div key={idx} className={`relative w-full h-[300px] md:h-[450px] ${idx % 3 === 0 ? 'md:col-span-2 md:h-[600px]' : ''}`}>
+                  <Image src={img} alt={`${property.title} - foto ${idx + 1}`} fill className="object-cover rounded-xl" />
                 </div>
               ))}
             </div>
@@ -144,33 +173,16 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* ================= CONTENIDO PRINCIPAL DE LA PÁGINA ================= */}
       <main className="w-full bg-white pb-24">
         <div className="relative w-full h-[40vh] md:h-[55vh] flex overflow-hidden">
           <div className="relative w-1/2 h-full border-r-4 border-white">
-            <Image 
-              src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"}
-              alt={property.title}
-              fill
-              className="object-cover"
-              priority
-            />
+            <Image src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={property.title} fill className="object-cover" priority />
           </div>
           <div className="relative w-1/2 h-full">
-            <Image 
-              src={property.images[1] || property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"}
-              alt={`${property.title} interior`}
-              fill
-              className="object-cover"
-              priority
-            />
+            <Image src={property.images[1] || property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={`${property.title} interior`} fill className="object-cover" priority />
           </div>
           <div className="absolute bottom-6 right-6 z-10 flex gap-3">
-            {/* Botón que dispara el modal de la galería */}
-            <button 
-              onClick={() => setShowGallery(true)}
-              className="bg-white px-4 py-2 text-sm font-semibold text-base-4 rounded-[8px] shadow-md border border-slate-200 hover:bg-slate-50 cursor-pointer flex items-center gap-2"
-            >
+            <button onClick={() => setShowGallery(true)} className="bg-white px-4 py-2 text-sm font-semibold text-base-4 rounded-[8px] shadow-md border border-slate-200 hover:bg-slate-50 cursor-pointer flex items-center gap-2">
               Ver las {property.images.length} fotos
             </button>
           </div>
@@ -226,14 +238,43 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                   </div>
 
+                  {property.rentalType === 'Temporario' && (
+                    <div className="grid grid-cols-2 gap-3 mb-6 border border-slate-200 rounded-xl p-3 bg-slate-50">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Llegada</label>
+                        <input 
+                          type="date" 
+                          value={startDate} 
+                          onChange={(e) => setStartDate(e.target.value)} 
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
+                        />
+                      </div>
+                      <div className="border-l border-slate-200 pl-3">
+                        <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Salida</label>
+                        <input 
+                          type="date" 
+                          value={endDate} 
+                          onChange={(e) => setEndDate(e.target.value)} 
+                          min={startDate || new Date().toISOString().split("T")[0]}
+                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-3 text-sm text-base-3 mb-6">
                     <div className="flex justify-between">
-                      <span>US$ {property.price} x 1 {property.priceUnit}</span>
-                      <span>US$ {property.price}</span>
+                      {property.rentalType === 'Temporario' ? (
+                        <span>US$ {property.price} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
+                      ) : (
+                        <span>Reserva residencial (1er mes)</span>
+                      )}
+                      <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base-4 pt-3 border-t border-slate-200 text-lg">
                       <span>Total</span>
-                      <span>US$ {property.price}</span>
+                      <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
                     </div>
                   </div>
 
