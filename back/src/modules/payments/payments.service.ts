@@ -9,6 +9,7 @@ import { Reservation } from "../reservations/entities/reservation.entity";
 import { ReservationStatus } from "../reservations/enums/reservation-status.enum";
 import { Property } from "../properties/entities/property.entity";
 import { User } from "../users/entities/user.entity";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class PaymentService {
@@ -18,7 +19,8 @@ export class PaymentService {
         @InjectRepository(Payment) private readonly paymentsRepository: Repository<Payment>,
         @InjectRepository(Reservation) private readonly reservationsRepository: Repository<Reservation>,
         @InjectRepository(Property) private readonly propertiesRepository: Repository<Property>,
-        @InjectRepository(User) private readonly usersRepository: Repository<User>
+        @InjectRepository(User) private readonly usersRepository: Repository<User>,
+        private readonly mailService: MailService,
     ){
         this.mercadoPagoClient = new MercadoPagoConfig({
             accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!
@@ -63,7 +65,7 @@ export class PaymentService {
             throw new NotFoundException('El usuario no existe');
         }
 
-        const amount = Number(property.price);
+        const amount = Number(reservation.totalPrice);
 
         const orderClient = new Order(this.mercadoPagoClient);
 
@@ -143,7 +145,7 @@ export class PaymentService {
                 processed:false
             }
         }
-        
+
         const reservationId = order.external_reference
         if(!reservationId)throw new ConflictException('La orden de Mercado Pago no tiene external_reference')
 
@@ -172,6 +174,12 @@ export class PaymentService {
         if(!reservation)throw new NotFoundException('No se encontró la reserva asociada al pago')
         reservation.status= ReservationStatus.CONFIRMED
         await this.reservationsRepository.save(reservation)
+
+        const property = await this.propertiesRepository.findOne({ where: { id: reservation.propertyId } });
+        const buyer = await this.usersRepository.findOne({ where: { id: reservation.userId } });
+        if (property && buyer) {
+            await this.mailService.sendPaymentConfirmation(buyer.email, buyer.name, property, payment.amount);
+        }
 
         console.log('🆗 PAGO APROBADO')
         console.log('Payment local: ',payment.id)

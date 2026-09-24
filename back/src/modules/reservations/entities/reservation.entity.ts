@@ -4,6 +4,12 @@ import { Property } from "../../properties/entities/property.entity";
 import { ReservationStatus } from "../enums/reservation-status.enum";
 import { Payment } from "../../payments/entities/payment.entity";
 
+const numericTransformer = {
+  to: (value: number) => value,
+  from: (value: string) => parseFloat(value),
+};
+
+
 @Entity('reservations')
 export class Reservation{
     @PrimaryGeneratedColumn('uuid')
@@ -15,8 +21,20 @@ export class Reservation{
     @Column()
     propertyId: string;
 
+    @Column({type: 'date'})
+    startDate:string;
+
+    @Column({type:'date'})
+    endDate: string;
+
+    @Column({type:'int',nullable:true})
+    nights: number|null;
+
+    @Column({type:'decimal',precision:10,scale:2,transformer:numericTransformer})
+    totalPrice: number;
+
     @Column({type:'enum',enum:ReservationStatus,default:ReservationStatus.PENDING})
-    status: ReservationStatus
+    status: ReservationStatus;
 
     @Column({
         type: 'timestamp',

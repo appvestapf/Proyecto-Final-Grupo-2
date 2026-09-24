@@ -5,11 +5,15 @@ import { Appointment } from "./entities/appointment.entity";
 import { Property } from "../properties/entities/property.entity";
 import { AppointmentService } from "./appointment.service";
 import { AppointmentController } from "./appointment.controller";
+import { UsersModule } from "../users/users.module";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Appointment, Property]),
         PassportModule,
+        UsersModule,
+        MailModule,
     ],
     controllers: [AppointmentController],
     providers: [AppointmentService],
