@@ -16,6 +16,20 @@ export class AppointmentService {
         private readonly mailService: MailService,
     ) {}
 
+    private async hasTimeConflict(propertyId: string, date: Date): Promise<boolean> {
+        const windowMinutes = 30;
+        const windowStart = new Date(date.getTime() - windowMinutes * 60 * 1000);
+        const windowEnd = new Date(date.getTime() + windowMinutes * 60 * 1000);
+
+        const conflicting = await this.appointmentsRepository.createQueryBuilder('appointment')
+            .where('appointment.propertyId = :propertyId', { propertyId })
+            .andWhere('appointment.status != :cancelled', { cancelled: 'cancelled' })
+            .andWhere('appointment.date BETWEEN :windowStart AND :windowEnd', { windowStart, windowEnd })
+            .getOne();
+
+        return !!conflicting;
+    }
+
     async createAppointment(createAppointmentDto: CreateAppointmentDto, userId: string) {
         const { propertyId, date } = createAppointmentDto;
         const appointmentDate = new Date(date);
@@ -25,13 +39,11 @@ export class AppointmentService {
         }
 
         const property = await this.propertiesRepository.findOne({ where: { id: propertyId } });
-        if (!property) throw new NotFoundException('La propiedad no existe');
+        if (!property || property.isDeleted) throw new NotFoundException('La propiedad no existe');
 
-        const duplicate = await this.appointmentsRepository.findOne({
-            where: { propertyId, date: appointmentDate },
-        });
-        if (duplicate && duplicate.status !== 'cancelled') {
-            throw new ConflictException('Ya existe una cita agendada para esta propiedad en esa fecha');
+        const hasConflict = await this.hasTimeConflict(propertyId, appointmentDate);
+        if (hasConflict) {
+            throw new ConflictException('Ya hay una cita agendada para esta propiedad cerca de ese horario');
         }
 
         const appointment = this.appointmentsRepository.create({
