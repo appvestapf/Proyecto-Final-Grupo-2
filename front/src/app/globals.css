@@ -9,7 +9,6 @@
   --color-base-3: #6B7280;
   --color-base-4: #111827;
 
-  /* Registramos las nuevas fuentes */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), var(--font-sans);
 }

@@ -4,11 +4,13 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { propertyService } from '@/services/propertyService';
+import { appointmentService } from '@/services/appointmentService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
-import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X } from 'lucide-react';
+import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
+import PaymentButton from '@/components/property/PaymentButton';
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -19,10 +21,17 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
 
-  // Estados para las fechas
+  // Estados para reservas
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Estados para citas (Appointments)
+  const [showAppointment, setShowAppointment] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [processingAppointment, setProcessingAppointment] = useState(false);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -60,6 +69,46 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const nights = property?.rentalType === 'Temporario' ? calculateNights() : 1;
   const totalPrice = property ? (property.rentalType === 'Temporario' ? property.price * (nights || 1) : property.price) : 0;
 
+  // Manejador para Agendar Cita
+  const handleScheduleAppointment = async () => {
+    if (!isAuthenticated || !token) {
+      toast.error('Debes iniciar sesión para agendar una visita');
+      router.push('/auth/login');
+      return;
+    }
+
+    if (!appointmentDate || !appointmentTime) {
+      toast.error('Seleccioná una fecha y hora para la visita');
+      return;
+    }
+
+    setProcessingAppointment(true);
+
+    try {
+      // Combinamos fecha y hora seleccionada para el formato ISO esperado por el backend
+      const dateTimeString = `${appointmentDate}T${appointmentTime}`;
+      const dateObj = new Date(dateTimeString);
+
+      if (dateObj <= new Date()) {
+        toast.error('La fecha y hora de la visita debe ser en el futuro');
+        setProcessingAppointment(false);
+        return;
+      }
+
+      await appointmentService.createAppointment(token, property?.id as string, dateObj.toISOString());
+      
+      toast.success('¡Visita presencial agendada con éxito!');
+      setShowAppointment(false); // Cerramos el acordeón al terminar
+      setAppointmentDate('');
+      setAppointmentTime('');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al intentar agendar la cita');
+    } finally {
+      setProcessingAppointment(false);
+    }
+  };
+
+  // Manejador para la Reserva Principal
   const handleReservation = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para solicitar una reserva');
@@ -90,7 +139,6 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         payload.endDate = endDate;
       }
 
-      // 1. Crear Reserva
       const resResponse = await fetch(`${API_URL}/reservations`, {
         method: 'POST',
         headers: {
@@ -103,31 +151,34 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       if (!resResponse.ok) {
         const errorData = await resResponse.json().catch(() => ({}));
         const serverMessage = Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
-        throw new Error(serverMessage || 'Error al crear la reserva en el servidor');
+        throw new Error(serverMessage || 'Error al conectar con el servidor');
       }
       
       const reservation = await resResponse.json();
 
-      // 2. Crear Pago y redirigir a MP
       const payResponse = await fetch(`${API_URL}/payments/${reservation.id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!payResponse.ok) {
-        const errorData = await payResponse.json().catch(() => ({}));
-        const serverMessage = Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
-        throw new Error(serverMessage || 'Error al generar la orden de pago');
-      }
+      if (!payResponse.ok) throw new Error('Error al generar la orden de pago');
       
       const payment = await payResponse.json();
       
-      toast.success('¡Reserva creada! Redirigiendo a Mercado Pago...');
-      window.location.href = payment.paymentUrl;
+      toast.success('¡Reserva creada! Por favor completa el pago.');
+      
+      const prefId = payment.paymentUrl ? new URL(payment.paymentUrl).searchParams.get('pref_id') : payment.paymentId;
+      
+      if (prefId) {
+        setPreferenceId(prefId);
+      } else {
+        window.location.href = payment.paymentUrl;
+      }
 
     } catch (error: any) {
       console.error(error);
       toast.error(error.message);
+    } finally {
       setProcessingPayment(false);
     }
   };
@@ -228,6 +279,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
+            {/* CAJA LATERAL FLOTANTE */}
             <div className="w-full lg:w-[400px]">
               <div className="sticky top-24 space-y-6">
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
@@ -239,7 +291,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   </div>
 
                   {property.rentalType === 'Temporario' && (
-                    <div className="grid grid-cols-2 gap-3 mb-6 border border-slate-200 rounded-xl p-3 bg-slate-50">
+                    <div className={`grid grid-cols-2 gap-3 mb-6 border border-slate-200 rounded-xl p-3 ${preferenceId ? 'bg-slate-100 opacity-60' : 'bg-slate-50'}`}>
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Llegada</label>
                         <input 
@@ -247,7 +299,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                           value={startDate} 
                           onChange={(e) => setStartDate(e.target.value)} 
                           min={new Date().toISOString().split("T")[0]}
-                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
+                          disabled={preferenceId !== null}
+                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800 disabled:cursor-not-allowed"
                         />
                       </div>
                       <div className="border-l border-slate-200 pl-3">
@@ -257,7 +310,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                           value={endDate} 
                           onChange={(e) => setEndDate(e.target.value)} 
                           min={startDate || new Date().toISOString().split("T")[0]}
-                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
+                          disabled={preferenceId !== null}
+                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -270,36 +324,96 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       ) : (
                         <span>Reserva residencial (1er mes)</span>
                       )}
-                      <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
+                      <span>US$ {totalPrice}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base-4 pt-3 border-t border-slate-200 text-lg">
                       <span>Total</span>
-                      <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
+                      <span>US$ {totalPrice}</span>
                     </div>
                   </div>
 
-                  <Button 
-                    variant="primary" 
-                    onClick={handleReservation}
-                    disabled={processingPayment || !property.isAvailable}
-                    className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 ${
-                      !property.isAvailable 
-                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                        : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer'
-                    }`}
-                  >
-                    {processingPayment ? (
-                      <><Loader2 className="animate-spin" size={20} /> Conectando a MP...</>
-                    ) : !property.isAvailable ? (
-                      "Propiedad no disponible"
-                    ) : (
-                      "Solicitar reserva"
-                    )}
-                  </Button>
+                  {!preferenceId ? (
+                    <Button 
+                      variant="primary" 
+                      onClick={handleReservation}
+                      disabled={processingPayment || !property.isAvailable}
+                      className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 ${
+                        !property.isAvailable 
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                          : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer'
+                      }`}
+                    >
+                      {processingPayment ? (
+                        <><Loader2 className="animate-spin" size={20} /> Preparando pago...</>
+                      ) : !property.isAvailable ? (
+                        "Propiedad no disponible"
+                      ) : (
+                        "Solicitar reserva"
+                      )}
+                    </Button>
+                  ) : (
+                    <PaymentButton preferenceId={preferenceId} />
+                  )}
                   
-                  <p className="text-center text-xs text-base-3 mt-3">
-                    Serás redirigido a Mercado Pago de forma segura.
-                  </p>
+                  {/* SECCIÓN AGENDAR CITA */}
+                  {!preferenceId && (
+                    <div className="mt-6 border-t border-slate-200 pt-6">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAppointment(!showAppointment)}
+                        disabled={!property.isAvailable}
+                        className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                          !property.isAvailable 
+                            ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <CalendarClock size={18} />
+                        Agendar visita presencial
+                      </Button>
+
+                      {showAppointment && (
+                        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4 animation-fade-in">
+                          <p className="text-xs font-bold uppercase text-slate-500">Elige cuándo ir:</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="date"
+                              value={appointmentDate}
+                              min={new Date().toISOString().split("T")[0]}
+                              onChange={(e) => setAppointmentDate(e.target.value)}
+                              className="w-full bg-white border border-slate-200 text-sm font-medium outline-none text-slate-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/20"
+                            />
+                            <input
+                              type="time"
+                              value={appointmentTime}
+                              onChange={(e) => setAppointmentTime(e.target.value)}
+                              className="w-full bg-white border border-slate-200 text-sm font-medium outline-none text-slate-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/20"
+                            />
+                          </div>
+                          <Button
+                            variant="primary"
+                            onClick={handleScheduleAppointment}
+                            disabled={processingAppointment}
+                            className="w-full py-2.5 text-sm"
+                          >
+                            {processingAppointment ? (
+                              <span className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} /> Procesando...
+                              </span>
+                            ) : (
+                              "Confirmar Visita"
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!preferenceId && (
+                    <p className="text-center text-xs text-base-3 mt-4">
+                      Pagos asegurados a través de Mercado Pago.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
