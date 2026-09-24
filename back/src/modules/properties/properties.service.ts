@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,12 +9,15 @@ import { Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class PropertiesService {
   constructor(
     @InjectRepository(Property)
     private propertiesRepository: Repository<Property>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   create(createPropertyDto: CreatePropertyDto, ownerId: string) {
@@ -122,5 +126,26 @@ export class PropertiesService {
 
     property.isAvailable = false;
     return this.propertiesRepository.save(property);
+  }
+
+  async addToFavorites(propertyId: string, userId: string) {
+    // Busca la propiedad por ID (404 si no existe o está borrada)
+    const property = await this.findOnePublic(propertyId);
+
+    const alreadyFavorite = await this.usersRepository.exists({
+      where: { id: userId, favorites: { id: propertyId } },
+    });
+    if (alreadyFavorite) {
+      throw new ConflictException('La propiedad ya está en tus favoritos');
+    }
+
+    // Inserta solo la fila en la tabla intermedia, sin volver a guardar el usuario
+    await this.usersRepository
+      .createQueryBuilder()
+      .relation(User, 'favorites')
+      .of(userId)
+      .add(propertyId);
+
+    return property;
   }
 }

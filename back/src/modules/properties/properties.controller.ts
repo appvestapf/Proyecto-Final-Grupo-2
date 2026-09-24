@@ -85,7 +85,8 @@ export class PropertiesController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB por imagen
-          new FileTypeValidator({ fileType: 'image' }),],
+          new FileTypeValidator({ fileType: 'image' }),
+        ],
       }),
     )
     images: Express.Multer.File[],
@@ -191,5 +192,23 @@ export class PropertiesController {
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string; isAdmin: boolean };
     return this.propertiesService.remove(id, requester.id, requester.isAdmin);
+  }
+  @Post(':id/favorites')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Agregar una propiedad a los favoritos del usuario logueado',
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
+  @ApiResponse({ status: 201, description: 'Propiedad agregada a favoritos' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
+  @ApiResponse({
+    status: 409,
+    description: 'La propiedad ya está en tus favoritos',
+  })
+  addToFavorites(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const requester = req.user as { id: string };
+    return this.propertiesService.addToFavorites(id, requester.id);
   }
 }
