@@ -5,12 +5,16 @@ import { Repository } from "typeorm";
 import { Property } from "../properties/entities/property.entity";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
 import { ReservationStatus } from "./enums/reservation-status.enum";
+import { UsersService } from "../users/users.service";
+import { MailService } from "../mail/mail.service";
 
 @Injectable()
 export class ReservationService {
     constructor(
         @InjectRepository(Reservation) private readonly reservationsRepository: Repository<Reservation>,
-        @InjectRepository(Property) private readonly propertiesRepository: Repository<Property>
+        @InjectRepository(Property) private readonly propertiesRepository: Repository<Property>,
+        private readonly usersService: UsersService,
+        private readonly mailService: MailService,
     ){}
 
     private async hasDateConflict(propertyId:string,startDate:string,endDate:string):Promise<Boolean>{
@@ -100,7 +104,12 @@ export class ReservationService {
             status: ReservationStatus.PENDING
         })
 
-        return this.reservationsRepository.save(reservation)
+        const savedReservation = await this.reservationsRepository.save(reservation);
+
+        const user = await this.usersService.findOne(userId);
+        await this.mailService.sendReservationConfirmation(user.email, user.name, property);
+
+        return savedReservation;
     }
 
     async findByUser(userId: string) {
