@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { reservationService } from '@/services/reservationService';
 import { appointmentService } from '@/services/appointmentService';
 import { toast } from 'sonner'; // <-- IMPORTANTE: Agregar esto
+import PaymentButton from '@/components/property/PaymentButton';
 
 export default function MisAlquileresPage() {
   const router = useRouter();
@@ -132,10 +133,27 @@ export default function MisAlquileresPage() {
                         <MapPin size={16} /> {reserva.property?.city}, {reserva.property?.country}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                    {/* <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
                       <p className="text-lg font-bold text-slate-900">US$ {reserva.property?.price}</p>
                       {reserva.status === 'pending' && <p className="text-xs text-amber-600 font-medium">Falta completar pago</p>}
+                    </div> */}
+                    <div className="flex items-end justify-between mt-6 pt-4">
+                      <p className="text-lg font-bold text-slate-900">US$ {reserva.property?.price}</p>
+                      
+                      {/* 🎯 Aquí se introduce el contenedor para el espacio azul */}
+                      <div className="flex flex-col items-end gap-2">
+                        {reserva.status === 'pending' && (
+                          <>
+                            <PaymentButton 
+                              reservationId={reserva.id} 
+                              price={reserva.property?.price} 
+                            />
+                            <p className="text-xs text-amber-600 font-medium">Falta completar pago</p>
+                          </>
+                        )}
+                      </div>
                     </div>
+
                   </div>
                 </div>
               ))
