@@ -12,6 +12,8 @@ type PropertySummary = {
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  private static readonly LOGO_URL =
+    'https://res.cloudinary.com/uw8tqkyg/image/upload/v1790215567/vesta-assets/vesta-logo.png';
 
   constructor() {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY ?? '');
@@ -127,15 +129,9 @@ export class MailService {
     const { title, message, buttonText, buttonPath, detailsHtml } = params;
     const frontendUrl = process.env.FRONTEND_URL;
 
-    const header = frontendUrl
-      ? `<div style="background-color: #ffffff; padding: 20px 24px; text-align: center; border-bottom: 1px solid #e2e8f0;">
-          <img src="${frontendUrl}/logo3.png" alt="Vesta" height="48" style="display: inline-block;" />
-        </div>`
-      : `<div style="background-color: #2563eb; padding: 20px 24px;">
-          <span style="color: #ffffff; font-size: 15px; font-weight: bold; letter-spacing: 0.5px;">
-            VESTA
-          </span>
-        </div>`;
+    const header = `<div style="background-color: #ffffff; padding: 20px 24px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+        <img src="${MailService.LOGO_URL}" alt="Vesta" height="48" style="display: inline-block;" />
+      </div>`;
 
     const button = frontendUrl
       ? `<div style="text-align: center; margin-bottom: 28px;">
