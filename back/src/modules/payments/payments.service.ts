@@ -65,7 +65,7 @@ export class PaymentService {
             throw new NotFoundException('El usuario no existe');
         }
 
-        const amount = Number(property.price);
+        const amount = Number(reservation.totalPrice);
 
         const orderClient = new Order(this.mercadoPagoClient);
 
