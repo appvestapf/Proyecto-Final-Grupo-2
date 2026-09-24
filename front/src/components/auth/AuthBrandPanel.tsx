@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 
 interface AuthBrandPanelProps {
   title: string;
@@ -12,9 +13,17 @@ export const AuthBrandPanel: React.FC<AuthBrandPanelProps> = ({ title, descripti
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
 
-      {/* Top logo o marca */}
-      <div className="relative z-10 flex items-center gap-2">
-        <span className="text-2xl font-bold tracking-tight">Vesta.</span>
+      {/* Top logo o marca (Optimizado a un solo div contenedor y más grande) */}
+      <div className="relative z-10">
+        <div className="relative w-20 h-20 overflow-hidden rounded-full shadow-lg bg-white/15 p-1 border border-white/20">
+          <Image 
+            src="/logo2.png"  
+            alt="Vesta Logo" 
+            fill
+            className="object-cover" 
+            priority
+          />
+        </div>
       </div>
 
       {/* Contenido principal con beneficios */}
