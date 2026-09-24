@@ -5,11 +5,15 @@ import { Property } from "../properties/entities/property.entity";
 import { ReservationService } from "./reservation.service";
 import { ReservationController } from "./reservation.controller";
 import { PassportModule } from "@nestjs/passport";
+import { UsersModule } from "../users/users.module";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Reservation,Property]),
-        PassportModule
+        PassportModule,
+        UsersModule,
+        MailModule,
     ],
     controllers: [ReservationController],
     providers: [ReservationService],
