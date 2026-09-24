@@ -52,7 +52,6 @@ export class PropertiesService {
   }
 
   async findAllAdmin(country?: string, city?: string, page?: string) {
-    // Sin filtro de isDeleted: el admin ve absolutamente todo.
     const where: any = {};
 
     if (country) {
@@ -129,7 +128,6 @@ export class PropertiesService {
   }
 
   async addToFavorites(propertyId: string, userId: string) {
-    // Busca la propiedad por ID (404 si no existe o está borrada)
     const property = await this.findOnePublic(propertyId);
 
     const alreadyFavorite = await this.usersRepository.exists({
@@ -139,7 +137,6 @@ export class PropertiesService {
       throw new ConflictException('La propiedad ya está en tus favoritos');
     }
 
-    // Inserta solo la fila en la tabla intermedia, sin volver a guardar el usuario
     await this.usersRepository
       .createQueryBuilder()
       .relation(User, 'favorites')
@@ -147,5 +144,31 @@ export class PropertiesService {
       .add(propertyId);
 
     return property;
+  }
+  async findFavorites(userId: string) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: { favorites: true },
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    return user.favorites.filter((property) => !property.isDeleted);
+  }
+
+  async removeFromFavorites(propertyId: string, userId: string) {
+    const isFavorite = await this.usersRepository.exists({
+      where: { id: userId, favorites: { id: propertyId } },
+    });
+    if (!isFavorite) {
+      throw new NotFoundException('La propiedad no está en tus favoritos');
+    }
+
+    await this.usersRepository
+      .createQueryBuilder()
+      .relation(User, 'favorites')
+      .of(userId)
+      .remove(propertyId);
+
+    return { message: 'Propiedad eliminada de favoritos' };
   }
 }

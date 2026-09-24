@@ -129,6 +129,19 @@ export class PropertiesController {
     return this.propertiesService.findAll(country, city, page);
   }
 
+  @Get('favorites')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Listar las propiedades favoritas del usuario logueado',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de propiedades favoritas' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  findFavorites(@Req() req: Request) {
+    const requester = req.user as { id: string };
+    return this.propertiesService.findFavorites(requester.id);
+  }
+
   @Get(':id')
   @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
@@ -193,6 +206,7 @@ export class PropertiesController {
     const requester = req.user as { id: string; isAdmin: boolean };
     return this.propertiesService.remove(id, requester.id, requester.isAdmin);
   }
+
   @Post(':id/favorites')
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -210,5 +224,26 @@ export class PropertiesController {
   addToFavorites(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string };
     return this.propertiesService.addToFavorites(id, requester.id);
+  }
+
+  @Delete(':id/favorites')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Quitar una propiedad de los favoritos del usuario logueado',
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
+  @ApiResponse({ status: 200, description: 'Propiedad eliminada de favoritos' })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({
+    status: 404,
+    description: 'La propiedad no está en tus favoritos',
+  })
+  removeFromFavorites(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    const requester = req.user as { id: string };
+    return this.propertiesService.removeFromFavorites(id, requester.id);
   }
 }
