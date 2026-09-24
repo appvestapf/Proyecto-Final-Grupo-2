@@ -55,6 +55,51 @@ export class MailService {
     );
   }
 
+  async sendNewAppointmentToOwner(
+    to: string,
+    ownerName: string,
+    visitorName: string,
+    propertyName: string,
+    date: Date,
+  ) {
+    const formattedDate = date.toLocaleString('es-AR', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    });
+    await this.send(
+      to,
+      'Nueva visita agendada - Vesta',
+      this.buildEmailTemplate({
+        title: `Hola, ${ownerName}`,
+        message: `${visitorName} agendó una visita a "${propertyName}" para el ${formattedDate}. Ingresá para confirmarla.`,
+        buttonText: 'Ver mis citas',
+        buttonPath: '/mis-alquileres',
+      }),
+    );
+  }
+
+  async sendAppointmentRescheduled(
+    to: string,
+    name: string,
+    propertyName: string,
+    date: Date,
+  ) {
+    const formattedDate = date.toLocaleString('es-AR', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    });
+    await this.send(
+      to,
+      'Cita reprogramada - Vesta',
+      this.buildEmailTemplate({
+        title: `Hola, ${name}`,
+        message: `Tu cita para visitar "${propertyName}" se reprogramó para el ${formattedDate}.`,
+        buttonText: 'Ver mis citas',
+        buttonPath: '/mis-alquileres',
+      }),
+    );
+  }
+
   async sendReservationConfirmation(
     to: string,
     name: string,
