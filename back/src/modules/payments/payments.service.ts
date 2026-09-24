@@ -92,11 +92,19 @@ export class PaymentService {
                             unit_price: amount.toFixed(2),
                         },
                     ],
+                    config: {
+                        online:{
+                            success_url:`${process.env.FRONTEND_URL}/pago-exitoso`,
+                            failure_url:`${process.env.FRONTEND_URL}/pago-fallido`,
+                            auto_return:'all',
+                        }
+                    }
                 },
 
                 requestOptions: {
                     idempotencyKey,
                 },
+                
             });
 
         } catch (error) {
@@ -178,7 +186,16 @@ export class PaymentService {
         const property = await this.propertiesRepository.findOne({ where: { id: reservation.propertyId } });
         const buyer = await this.usersRepository.findOne({ where: { id: reservation.userId } });
         if (property && buyer) {
-            await this.mailService.sendPaymentConfirmation(buyer.email, buyer.name, property, payment.amount);
+            const amount = Number(payment.amount)
+            if(!Number.isFinite(amount)){
+                throw new ConflictException('El monto del pago no es válido')
+            }
+            await this.mailService.sendPaymentConfirmation(
+                buyer.email,
+                buyer.name,
+                property,
+                amount
+            )
         }
 
         console.log('🆗 PAGO APROBADO')
@@ -195,6 +212,31 @@ export class PaymentService {
             reservationId,
             status: payment.status,
             reservationStatus: reservation.status
+        }
+    }
+
+    async getPaymentStatus(reservationId:string,userId:string){
+        const reservation = await this.reservationsRepository.findOne({where:{
+            id: reservationId,
+            userId
+        }})
+
+        if(!reservation)throw new NotFoundException('No existe la reserva o no pertenece al usuario')
+        
+        const payment = await this.paymentsRepository.findOne({where:{reservationId},order:{
+            createdAt: 'DESC'
+        }})
+
+        if(!payment)throw new NotFoundException('No existe un pago asociado a la reserva')
+        
+        return {
+            reservationId:reservation.id,
+            reservationStatus: reservation.status,
+            paymentId:payment.id,
+            paymentStatus:payment.status,
+            mercadoPagoOrderId:payment.mercadoPagoOrderId,
+            mercadoPagoPaymentId:payment.mercadoPagoPaymentId,
+            amount: payment.amount
         }
     }
 

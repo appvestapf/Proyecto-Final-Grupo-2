@@ -1,4 +1,4 @@
-import { Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { PaymentService } from "./payments.service";
 import { RequestWithUser } from "../auth/interfaces/request-whit-user.interface";
 import { AuthGuard } from "@nestjs/passport";
@@ -73,6 +73,41 @@ export class PaymentsController {
         return {
             received: true,
         };
+    }
+
+    @Get(':reservationId/status')
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard('jwt'))
+    @ApiOperation({
+        summary:'Consultar el estado del pago de una reserva',
+        description:'Devuelve el estado actual del pago y de la reserva asociada'
+    })
+    @ApiResponse({
+        status:200,
+        description:'Estado del pago obtenido correctamente',
+        schema:{
+        example: {
+            reservationId: 'UUID',
+            reservationStatus: 'confirmed',
+            paymentId: 'UUID',
+            paymentStatus: 'approved',
+            mercadoPagoOrderId: 'ORDTST01...',
+            mercadoPagoPaymentId: '123456789',
+            amount: 3000,
+        }
+        }
+    })
+    @ApiResponse({
+        status:401,
+        description:'Usuario no autenticado'
+    })
+    @ApiResponse({
+        status:404,
+        description:'No se encontró la reserva o el pago asociado'
+    })
+    getPaymentsStatus(@Param('reservationId')reservationId:string,@Req()req: Request){
+        const user = req.user as {id: string}
+        return this.paymentsService.getPaymentStatus(reservationId,user.id)
     }
 
     @Post(':reservationId')
