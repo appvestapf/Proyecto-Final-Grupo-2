@@ -4,6 +4,8 @@ import {
   BeforeUpdate,
   Column,
   Entity,
+  JoinTable,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -66,6 +68,18 @@ export class User {
 
   @OneToMany(() => Property, (property) => property.owner)
   properties: Property[];
+
+  @ApiPropertyOptional({
+    type: () => [Property],
+    description: 'Propiedades marcadas como favoritas por el usuario',
+  })
+  @ManyToMany(() => Property)
+  @JoinTable({
+    name: 'user_favorites',
+    joinColumn: { name: 'userId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'propertyId', referencedColumnName: 'id' },
+  })
+  favorites: Property[];
 
   @BeforeInsert()
   @BeforeUpdate()
