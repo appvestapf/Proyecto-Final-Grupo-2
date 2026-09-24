@@ -52,8 +52,8 @@ export default function LoginPage() {
         description="Gestioná tus propiedades, agendá citas y encontrá el hogar de tus sueños con la plataforma inmobiliaria líder de la región."
       />
 
-      <div className="flex items-center justify-center p-8 sm:p-12">
-        <div className="max-w-md w-full space-y-6">
+      <div className="flex items-center justify-center p-6 sm:p-8">
+        <div className="max-w-md w-full space-y-3">
           <div className="text-center lg:text-left">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Iniciar Sesión</h1>
             <p className="text-sm text-gray-500 mt-2">Ingresá tus credenciales para acceder a tu cuenta</p>
@@ -62,7 +62,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-[12px] text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all cursor-pointer shadow-xs"
+            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 rounded-[12px] text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all cursor-pointer shadow-xs"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -73,20 +73,20 @@ export default function LoginPage() {
             Continuar con Google
           </button>
 
-          <div className="flex items-center my-4">
+          <div className="flex items-center my-3">
             <div className="flex-grow border-t border-gray-200"></div>
             <span className="px-3 text-xs text-gray-400 uppercase tracking-wider">o con email</span>
             <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+              <label className="block text-[13px] font-medium text-gray-700 mb-0.5">Correo electrónico</label>
               <input
                 type="email"
                 autoComplete="email"
                 {...register('email')}
-                className={`w-full px-4 py-2.5 border rounded-[12px] focus:outline-none focus:ring-2 text-sm transition-all ${
+                className={`w-full px-4 py-2 border rounded-[12px] focus:outline-none focus:ring-2 text-sm transition-all ${
                   errors.email ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-primary'
                 }`}
                 placeholder="tu@correo.com"
@@ -95,8 +95,8 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="block text-[13px] font-medium text-gray-700">Contraseña</label>
                 <Link href="#" className="text-xs text-primary hover:underline font-medium">
                   ¿Olvidaste tu contraseña?
                 </Link>
@@ -106,7 +106,7 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   {...register('password')}
-                  className={`w-full px-4 py-2.5 pr-10 border rounded-[12px] focus:outline-none focus:ring-2 text-sm transition-all ${
+                  className={`w-full px-4 py-2 pr-10 border rounded-[12px] focus:outline-none focus:ring-2 text-sm transition-all ${
                     errors.password ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-primary'
                   }`}
                   placeholder="••••••••"
@@ -131,7 +131,7 @@ export default function LoginPage() {
               {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
             </div>
 
-            <Button type="submit" variant="primary" className="w-full py-3 mt-2 shadow-sm" disabled={loading}>
+            <Button type="submit" variant="primary" className="w-full py-2.5 mt-1 shadow-sm" disabled={loading}>
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-gray-500 mt-4">
             ¿No tenés una cuenta?{' '}
             <Link href="/auth/register" className="text-primary font-semibold hover:underline">
               Registrate

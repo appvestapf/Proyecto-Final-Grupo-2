@@ -1,6 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
-
 interface AuthBrandPanelProps {
   title: string;
   description: string;
@@ -8,21 +8,23 @@ interface AuthBrandPanelProps {
 
 export const AuthBrandPanel: React.FC<AuthBrandPanelProps> = ({ title, description }) => {
   return (
-    <div className="relative hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 via-primary to-blue-900 text-white overflow-hidden">
+    <div className="relative hidden lg:flex flex-col justify-between p-8 lg:p-10 lg:pt-6 bg-gradient-to-br from-blue-600 via-primary to-blue-900 text-white overflow-hidden">
       {/* Efectos de luz difuminada (Glow effects) de fondo */}
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
 
       {/* Top logo o marca (Optimizado a un solo div contenedor y más grande) */}
       <div className="relative z-10">
-        <div className="relative w-20 h-20 overflow-hidden rounded-full shadow-lg bg-white/15 p-1 border border-white/20">
-          <Image 
+        <div className="relative w-17 h-17 overflow-hidden rounded-full shadow-lg bg-white/15 p-1 border border-white/20">
+            <Link href="/">
+            <Image 
             src="/logo2.png"  
             alt="Vesta Logo" 
             fill
             className="object-cover" 
             priority
           />
+            </Link>
         </div>
       </div>
 
