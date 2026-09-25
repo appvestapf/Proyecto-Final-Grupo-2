@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, LoginCredentials, RegisterData } from '@/interfaces/user';
 import { authService } from '@/services/authService';
+import { favoriteService } from '@/services/favoriteService';
+import { toast } from 'sonner';
 
 type UserRole = "visitante" | "inquilino" | "admin";
 
@@ -10,6 +12,11 @@ interface AuthState {
   token: string | null;
   role: UserRole;
   isAuthenticated: boolean;
+  userFavorites: string[];
+  fetchFavorites: () => Promise<void>;
+  syncPendingFavorite: (token: string) => Promise<void>;
+  addFavoriteId: (id: string) => void;
+  removeFavoriteId: (id: string) => void;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   setGoogleToken: (token: string) => Promise<void>;
@@ -18,11 +25,64 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       role: "visitante",
       isAuthenticated: false,
+      userFavorites: [],
+
+      fetchFavorites: async () => {
+        const token = get().token;
+        if (!token) return;
+        try {
+          const favorites = await favoriteService.getMyFavorites(token);
+          if (Array.isArray(favorites)) {
+            const ids = favorites.map((item: any) => item.id);
+            set({ userFavorites: ids });
+          }
+        } catch (error) {
+          console.error("Error al sincronizar favoritos:", error);
+        }
+      },
+
+      syncPendingFavorite: async (activeToken: string) => {
+        if (typeof window === 'undefined') return;
+        const pendingId = sessionStorage.getItem('pendingFavoriteId');
+        
+        if (pendingId) {
+          sessionStorage.removeItem('pendingFavoriteId');
+
+          const isAlreadyFavorite = get().userFavorites.includes(pendingId);
+
+          if (isAlreadyFavorite) {
+            toast.info('Esta propiedad ya estaba en tus favoritos');
+            return;
+          }
+
+          try {
+            await favoriteService.addFavorite(pendingId, activeToken);
+            get().addFavoriteId(pendingId);
+            toast.success('¡Propiedad guardada en tus favoritos!');
+          } catch (error) {
+            console.error("Error al procesar el favorito pendiente:", error);
+          }
+        }
+      },
+
+      addFavoriteId: (id: string) => {
+        set((state) => ({
+          userFavorites: state.userFavorites.includes(id) 
+            ? state.userFavorites 
+            : [...state.userFavorites, id],
+        }));
+      },
+
+      removeFavoriteId: (id: string) => {
+        set((state) => ({
+          userFavorites: state.userFavorites.filter((favId) => favId !== id),
+        }));
+      },
 
       login: async (credentials: LoginCredentials) => {
         const response = await authService.login(credentials);
@@ -35,6 +95,9 @@ export const useAuthStore = create<AuthState>()(
 
         const role: UserRole = user.isAdmin ? "admin" : "inquilino";
         set({ user, token, role, isAuthenticated: true });
+
+        await get().fetchFavorites();
+        await get().syncPendingFavorite(token);
       },
 
       register: async (userData: RegisterData) => {
@@ -48,6 +111,9 @@ export const useAuthStore = create<AuthState>()(
 
         const role: UserRole = user.isAdmin ? "admin" : "inquilino";
         set({ user, token, role, isAuthenticated: true });
+
+        await get().fetchFavorites();
+        await get().syncPendingFavorite(token);
       },
 
       setGoogleToken: async (token: string) => {
@@ -77,11 +143,14 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           role 
         });
+
+        await get().fetchFavorites();
+        await get().syncPendingFavorite(token);
       },
 
       logout: () => {
         authService.logout();
-        set({ user: null, token: null, role: "visitante", isAuthenticated: false });
+        set({ user: null, token: null, role: "visitante", isAuthenticated: false, userFavorites: [] });
       },
     }),
     {

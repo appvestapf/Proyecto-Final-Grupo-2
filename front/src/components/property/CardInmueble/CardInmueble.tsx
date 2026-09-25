@@ -1,13 +1,13 @@
 import React from 'react';
 import { Property } from '@/interfaces/property';
 import { Badge } from '@/components/common/Badge/Badge';
+import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 import { Star, Bath, Bed, Tag } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link'; // 1. Agregamos la importación de Link
+import Link from 'next/link';
 
 export const CardInmueble = ({ data }: { data: Property }) => {
   return (
-    // 2. Envolvemos toda la tarjeta en el Link dinámico usando data.id
     <Link href={`/catalog/${data.id}`} className="block w-full h-full">
       <div className="w-full h-full bg-base-1 rounded-[12px] border border-base-2 shadow-sm overflow-hidden flex flex-col cursor-pointer transition-transform duration-200 hover:-translate-y-1">
         
@@ -16,6 +16,12 @@ export const CardInmueble = ({ data }: { data: Property }) => {
           <div className="absolute top-3 left-3 z-10">
             <Badge text={data.rentalType} type={data.rentalType} />
           </div>
+
+          {/* 2. Botón de Favorito Flotante */}
+          <div className="absolute top-3 right-3 z-10">
+            <FavoriteButton propertyId={data.id} />
+          </div>
+
           <Image 
             src={data.images[0]} 
             alt={data.name} 
