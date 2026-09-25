@@ -11,6 +11,7 @@ import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock } fr
 import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
 import PaymentButton from '@/components/property/PaymentButton';
+import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -85,7 +86,6 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     setProcessingAppointment(true);
 
     try {
-      // Combinamos fecha y hora seleccionada para el formato ISO esperado por el backend
       const dateTimeString = `${appointmentDate}T${appointmentTime}`;
       const dateObj = new Date(dateTimeString);
 
@@ -98,7 +98,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       await appointmentService.createAppointment(token, property?.id as string, dateObj.toISOString());
       
       toast.success('¡Visita presencial agendada con éxito!');
-      setShowAppointment(false); // Cerramos el acordeón al terminar
+      setShowAppointment(false);
       setAppointmentDate('');
       setAppointmentTime('');
     } catch (error: any) {
@@ -246,9 +246,13 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
             <div className="flex-1">
-              <h1 className="text-4xl md:text-5xl font-extrabold text-base-4 tracking-tight mb-6">
-                {property.title}
-              </h1>
+              {/* Título e ícono de Favorito integrado */}
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <h1 className="text-4xl md:text-5xl font-extrabold text-base-4 tracking-tight">
+                  {property.title}
+                </h1>
+                <FavoriteButton propertyId={property.id} size={24} className="shrink-0 mt-2" />
+              </div>
 
               <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-medium text-base-4 mb-8">
                 <span className="flex items-center gap-2"><Users size={20} className="text-base-3" /> {property.capacity} huéspedes</span>
