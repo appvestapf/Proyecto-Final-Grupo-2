@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import { Toaster } from 'sonner';
 import "./globals.css";
 import ClientLayout from "@/components/layout/ClientLayout";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const fontSans = Inter({
   variable: "--font-sans",
@@ -21,14 +22,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontDisplay.variable} font-sans min-h-screen flex flex-col antialiased text-slate-900`}
+        className={`${fontSans.variable} ${fontDisplay.variable} font-sans min-h-screen flex flex-col antialiased`}
       >
-        <ClientLayout>
-          {children}
-        </ClientLayout>
-        <Toaster richColors position="bottom-center" />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ClientLayout>
+            {children}
+          </ClientLayout>
+          <Toaster richColors position="bottom-center" />
+        </ThemeProvider>
       </body>
     </html>
   );
