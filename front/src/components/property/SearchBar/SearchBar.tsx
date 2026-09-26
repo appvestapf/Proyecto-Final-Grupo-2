@@ -21,27 +21,27 @@ export const SearchBar = ({ onSearch }: SearchBarProps) => {
   return (
     <form 
       onSubmit={handleSubmit}
-      className="w-full max-w-[1100px] mx-auto bg-base-1 p-4 rounded-[12px] border border-base-2 shadow-md grid grid-cols-1 md:grid-cols-5 gap-4 items-center mb-8"
+      className="w-full max-w-[1100px] mx-auto bg-surface p-4 rounded-[16px] border border-subtle shadow-md grid grid-cols-1 md:grid-cols-5 gap-3 items-center mb-8 transition-colors duration-200"
     >
       {/* Filtro por Ubicación */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-base-2/50 rounded-[12px] border border-base-2">
-        <MapPin className="w-5 h-5 text-base-3 shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-app/60 rounded-[12px] border border-subtle focus-within:border-primary transition-colors">
+        <MapPin className="w-5 h-5 text-muted shrink-0" />
         <input 
           type="text" 
           placeholder="¿Dónde buscás?" 
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          className="w-full bg-transparent text-sm text-base-4 focus:outline-none placeholder:text-base-3"
+          className="w-full bg-transparent text-sm text-main focus:outline-none placeholder:text-muted"
         />
       </div>
 
       {/* Filtro por Tipo de Operación / Inmueble */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-base-2/50 rounded-[12px] border border-base-2">
-        <Home className="w-5 h-5 text-base-3 shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-app/60 rounded-[12px] border border-subtle focus-within:border-primary transition-colors">
+        <Home className="w-5 h-5 text-muted shrink-0" />
         <select 
           value={rentalType}
           onChange={(e) => setRentalType(e.target.value)}
-          className="w-full bg-transparent text-sm text-base-4 focus:outline-none cursor-pointer"
+          className="w-full bg-transparent text-sm text-main focus:outline-none cursor-pointer [&>option]:bg-surface [&>option]:text-main"
         >
           <option value="">Tipo (Todos)</option>
           <option value="Temporario">Temporario</option>
@@ -50,33 +50,33 @@ export const SearchBar = ({ onSearch }: SearchBarProps) => {
       </div>
 
       {/* Filtro por Capacidad (Huéspedes) */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-base-2/50 rounded-[12px] border border-base-2">
-        <Users className="w-5 h-5 text-base-3 shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-app/60 rounded-[12px] border border-subtle focus-within:border-primary transition-colors">
+        <Users className="w-5 h-5 text-muted shrink-0" />
         <input 
           type="number" 
           placeholder="Huéspedes" 
           value={capacity}
           onChange={(e) => setCapacity(e.target.value)}
-          className="w-full bg-transparent text-sm text-base-4 focus:outline-none placeholder:text-base-3"
+          className="w-full bg-transparent text-sm text-main focus:outline-none placeholder:text-muted"
         />
       </div>
 
       {/* Filtro por Precio Máximo */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-base-2/50 rounded-[12px] border border-base-2">
-        <DollarSign className="w-5 h-5 text-base-3 shrink-0" />
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-app/60 rounded-[12px] border border-subtle focus-within:border-primary transition-colors">
+        <DollarSign className="w-5 h-5 text-muted shrink-0" />
         <input 
           type="number" 
           placeholder="Precio máx. (US$)" 
           value={maxPrice}
           onChange={(e) => setMaxPrice(e.target.value)}
-          className="w-full bg-transparent text-sm text-base-4 focus:outline-none placeholder:text-base-3"
+          className="w-full bg-transparent text-sm text-main focus:outline-none placeholder:text-muted"
         />
       </div>
 
       {/* Botón de Búsqueda */}
-      <div className="flex justify-center">
-        <Button variant="primary" type="submit" className="w-full h-full py-3">
-          <Search className="w-4 h-4 mr-2" /> Buscar
+      <div className="flex justify-center h-full">
+        <Button variant="primary" type="submit" className="w-full h-full py-2.5 rounded-[12px] flex items-center justify-center gap-2">
+          <Search className="w-4 h-4 shrink-0" /> <span>Buscar</span>
         </Button>
       </div>
     </form>
