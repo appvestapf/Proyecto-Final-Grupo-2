@@ -94,10 +94,10 @@ export const FavoriteButton = ({
     <button
       onClick={handleToggleFavorite}
       disabled={loading}
-      className={`p-2 bg-white/90 backdrop-blur-md rounded-full shadow-md transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 ${
+      className={`p-2 bg-surface/80 backdrop-blur-md border border-subtle rounded-full shadow-md transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center justify-center ${
         isFavorite 
-          ? 'text-rose-500 hover:bg-rose-500 hover:text-white' 
-          : 'text-slate-400 hover:text-rose-500 hover:bg-white'
+          ? 'text-rose-500 hover:bg-rose-500 hover:text-white dark:hover:text-white' 
+          : 'text-muted hover:text-rose-500 hover:bg-surface'
       } ${className}`}
       title={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
     >
