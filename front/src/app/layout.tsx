@@ -35,7 +35,13 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
           <ClientLayout>
             {children}
           </ClientLayout>
-          <Toaster richColors position="bottom-center" />
+          
+          <Toaster 
+            richColors 
+            position="bottom-center"
+            visibleToasts={1} 
+            duration={2000}
+          />
         </ThemeProvider>
       </body>
     </html>
