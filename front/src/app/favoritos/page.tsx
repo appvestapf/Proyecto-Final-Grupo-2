@@ -58,7 +58,7 @@ export default function FavoritosPage() {
   // Pantalla de Carga (Loading State)
   if (isCheckingAuth || loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-slate-500">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-muted">
         <Loader2 className="animate-spin text-primary" size={40} />
         <p>{isCheckingAuth ? "Verificando acceso..." : "Cargando tus favoritos..."}</p>
       </div>
@@ -66,18 +66,18 @@ export default function FavoritosPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-10 px-4">
+    <main className="min-h-screen bg-app py-10 px-4">
       <div className="max-w-5xl mx-auto">
         
         {/* Encabezado */}
         <div className="mb-8">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Mis Favoritos</h1>
-            <span className="bg-rose-100 text-rose-600 font-bold text-xs px-2.5 py-1 rounded-full flex items-center gap-1">
-              <Heart size={14} className="fill-rose-600" /> {favorites.length}
+            <h1 className="text-3xl font-bold text-main tracking-tight">Mis Favoritos</h1>
+            <span className="bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold text-xs px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Heart size={14} className="fill-rose-600 dark:fill-rose-400" /> {favorites.length}
             </span>
           </div>
-          <p className="text-slate-500 mt-2">Propiedades que has guardado para revisar más tarde.</p>
+          <p className="text-muted mt-2">Propiedades que has guardado para revisar más tarde.</p>
         </div>
 
         {/* CONTENIDO PRINCIPAL ANIMADO */}
@@ -90,13 +90,13 @@ export default function FavoritosPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.3 }}
-              className="text-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center"
+              className="text-center py-20 bg-surface rounded-2xl border border-subtle shadow-sm flex flex-col items-center justify-center"
             >
-              <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4 text-rose-500">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/40 rounded-full flex items-center justify-center mb-4 text-rose-500">
                 <HeartOff size={32} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-1">Aún no tienes favoritos guardados</h3>
-              <p className="text-slate-500 font-medium max-w-sm mb-6">
+              <h3 className="text-lg font-bold text-main mb-1">Aún no tienes favoritos guardados</h3>
+              <p className="text-muted font-medium max-w-sm mb-6">
                 Explora nuestro catálogo y haz clic en el ícono de corazón para guardar las propiedades que más te gusten.
               </p>
               <Button variant="outline" onClick={() => router.push('/catalog')}>
@@ -120,14 +120,15 @@ export default function FavoritosPage() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                    className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group"
+                    className="bg-surface border border-subtle rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group"
                   >
                     {/* Imagen y Botón Favorito */}
-                    <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
+                    <div className="relative w-full h-48 bg-app overflow-hidden">
                       <Image 
                         src={propiedad?.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} 
                         alt={propiedad?.title || "Propiedad"} 
                         fill 
+                        sizes="(max-width: 768px) 100vw, 320px"
                         className="object-cover group-hover:scale-105 transition-transform duration-300" 
                       />
                       
@@ -146,20 +147,20 @@ export default function FavoritosPage() {
                     {/* Info de la propiedad */}
                     <div className="p-5 flex-1 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-lg font-bold text-slate-900 line-clamp-1 mb-1">
+                        <h3 className="text-lg font-bold text-main line-clamp-1 mb-1">
                           {propiedad?.title || propiedad?.name}
                         </h3>
-                        <p className="text-sm text-slate-500 flex items-center gap-1.5 mb-4">
-                          <MapPin size={16} className="text-slate-400 shrink-0" /> 
+                        <p className="text-sm text-muted flex items-center gap-1.5 mb-4">
+                          <MapPin size={16} className="text-muted shrink-0" /> 
                           <span className="truncate">{propiedad?.city}, {propiedad?.country}</span>
                         </p>
                       </div>
 
                       {/* Footer de la tarjeta */}
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
+                      <div className="flex items-center justify-between pt-4 border-t border-subtle mt-2">
                         <div>
-                          <p className="text-xs text-slate-400 uppercase font-semibold">Precio</p>
-                          <p className="text-lg font-bold text-slate-900">US$ {propiedad?.price}</p>
+                          <p className="text-xs text-muted uppercase font-semibold">Precio</p>
+                          <p className="text-lg font-bold text-main">US$ {propiedad?.price}</p>
                         </div>
 
                         <Button 

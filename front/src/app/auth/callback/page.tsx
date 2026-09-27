@@ -10,8 +10,6 @@ function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setGoogleToken = useAuthStore((state) => state.setGoogleToken);
-  
-  // Bandera para evitar ejecuciones múltiples (por StrictMode o re-renders)
   const hasProcessed = useRef(false);
 
   useEffect(() => {
@@ -28,11 +26,8 @@ function AuthCallbackContent() {
 
     try {
       hasProcessed.current = true;
-      // Guardamos el token en Zustand y localStorage
       setGoogleToken(token);
       toast.success('¡Sesión iniciada con éxito!');
-      
-      // Redirigimos al inicio limpiando la URL
       router.replace('/');
     } catch (error) {
       console.error('Error al procesar el token de Google', error);
@@ -42,28 +37,27 @@ function AuthCallbackContent() {
   }, [searchParams, router, setGoogleToken]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full bg-white rounded-[20px] shadow-sm border border-gray-100 p-8 text-center space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-app px-4 transition-colors duration-200">
+      <div className="max-w-md w-full bg-surface rounded-[20px] shadow-md border border-subtle p-8 text-center space-y-6">
         
-        {/* Logo oficial de Vesta */}
+        {/* Isotipo oficial Vesta */}
         <div className="flex justify-center">
-          <div className="relative w-12 h-12 flex items-center justify-center">
+          <div className="relative w-12 h-12 flex items-center justify-center overflow-hidden rounded-full border border-subtle bg-app p-0.5">
             <Image 
               src="/logo2.png" 
               alt="Vesta Logo" 
-              width={48} 
-              height={48} 
-              className="object-contain"
+              fill
+              className="object-cover"
               priority
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+          <h2 className="text-xl font-bold text-main tracking-tight">
             Autenticando con Google
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted">
             Estamos configurando tu sesión de forma segura. En un momento serás redirigido...
           </p>
         </div>
@@ -84,7 +78,7 @@ function AuthCallbackContent() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
       </div>
     }>

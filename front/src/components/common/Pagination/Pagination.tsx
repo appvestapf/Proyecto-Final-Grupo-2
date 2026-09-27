@@ -13,8 +13,8 @@ export const Pagination = ({ currentPage, totalPages, onNext, onPrev }: Paginati
       <Button variant="outline" onClick={onPrev} disabled={currentPage === 1}>
         Anterior
       </Button>
-      <span className="font-medium text-base-4">
-        Página {currentPage} de {totalPages}
+      <span className="font-medium text-sm text-muted">
+        Página <strong className="text-main">{currentPage}</strong> de <strong className="text-main">{totalPages}</strong>
       </span>
       <Button variant="outline" onClick={onNext} disabled={currentPage === totalPages}>
         Siguiente
