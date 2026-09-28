@@ -1,0 +1,108 @@
+"use client";
+
+import React, { useState } from 'react';
+import { Search, Home, CreditCard, CalendarClock, ShieldCheck, Mail, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/common/Button/Button';
+
+const CATEGORIES = [
+  { icon: Home, title: "Reservas y Estadías", desc: "Todo sobre temporarios y residenciales." },
+  { icon: CreditCard, title: "Pagos y Reembolsos", desc: "Mercado Pago, señas y garantías." },
+  { icon: CalendarClock, title: "Visitas Presenciales", desc: "Cómo agendar o reprogramar citas." },
+  { icon: ShieldCheck, title: "Confianza y Seguridad", desc: "Reglas de la comunidad y verificación." },
+];
+
+const FAQS = [
+  { q: "¿Cómo funciona el pago de la seña?", a: "Al solicitar una reserva, abonarás el total de la seña a través de Mercado Pago. Si el anfitrión rechaza la solicitud, el dinero se devuelve automáticamente a tu cuenta." },
+  { q: "¿Cuál es la diferencia entre Temporario y Residencial?", a: "Los temporarios requieren elegir fecha de inicio y fin, calculando el precio por noche. Los residenciales asumen contratos largos y muestran el valor mensual base." },
+  { q: "¿Puedo cancelar una visita presencial?", a: "Sí, desde tu panel en 'Mis Alquileres' > 'Visitas Presenciales' puedes cancelar o reprogramar tu cita hasta 24hs antes." },
+];
+
+export default function AyudaPage() {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  return (
+    <main className="min-h-screen bg-app transition-colors duration-200">
+      
+      {/* HERO SECTION */}
+      <section className="bg-primary pt-24 pb-20 px-4 text-center">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+            ¿En qué podemos ayudarte?
+          </h1>
+          
+          <div className="relative max-w-2xl mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+            <input 
+              type="text" 
+              placeholder="Busca 'reembolso', 'agendar visita', 'mercadopago'..." 
+              className="w-full pl-12 pr-4 py-4 rounded-full bg-white text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-400/50 text-lg shadow-xl"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* CATEGORÍAS (Bento Grid) */}
+      <section className="max-w-5xl mx-auto px-4 -mt-10 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {CATEGORIES.map((cat, idx) => {
+            const Icon = cat.icon;
+            return (
+              <button 
+                key={idx} 
+                className="bg-surface border border-subtle p-6 rounded-3xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col items-start gap-4 cursor-pointer"
+              >
+                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-primary">
+                  <Icon size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-main mb-1">{cat.title}</h3>
+                  <p className="text-sm text-muted leading-relaxed">{cat.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* FAQs */}
+      <section className="max-w-3xl mx-auto px-4 py-20">
+        <h2 className="text-2xl font-bold text-main mb-8 text-center">Preguntas Frecuentes</h2>
+        
+        <div className="space-y-4">
+          {FAQS.map((faq, idx) => (
+            <div key={idx} className="bg-surface border border-subtle rounded-2xl overflow-hidden shadow-sm transition-colors">
+              <button 
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                className="w-full px-6 py-5 text-left flex justify-between items-center cursor-pointer hover:bg-app"
+              >
+                <span className="font-semibold text-main">{faq.q}</span>
+                <ChevronDown className={`text-muted transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} size={20} />
+              </button>
+              
+              <div className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? 'max-h-40 pb-5 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <p className="text-muted text-sm leading-relaxed border-t border-subtle pt-4">
+                  {faq.a}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA FINAL */}
+      <section className="bg-surface border-t border-subtle py-16 px-4 text-center">
+        <div className="max-w-2xl mx-auto">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-muted">
+            <Mail size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-main mb-4">¿No encontraste lo que buscabas?</h2>
+          <p className="text-muted mb-8">Nuestro equipo de soporte está disponible para ayudarte con cualquier problema o duda sobre tus alquileres y propiedades.</p>
+          <Button variant="primary" className="rounded-full px-8 py-3">
+            Contactar a Soporte
+          </Button>
+        </div>
+      </section>
+
+    </main>
+  );
+}
