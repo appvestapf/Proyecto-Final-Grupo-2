@@ -3,6 +3,8 @@ import {ApiOperation,ApiResponse, ApiTags} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { GoogleUser } from './interfaces/google-user.interface';
@@ -48,6 +50,34 @@ export class AuthController {
     })
     login(@Body() loginDto: LoginDto) {
         return this.authService.login(loginDto);
+    }
+
+    @Post('forgot-password')
+    @ApiOperation({
+        summary: 'Solicitar el restablecimiento de contraseña',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Se envió un mail con instrucciones (si el email existe)',
+    })
+    forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(forgotPasswordDto);
+    }
+
+    @Post('reset-password')
+    @ApiOperation({
+        summary: 'Restablecer la contraseña con el token recibido por mail',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Contraseña actualizada correctamente',
+    })
+    @ApiResponse({
+        status: 401,
+        description: 'El token es inválido o expiró',
+    })
+    resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+        return this.authService.resetPassword(resetPasswordDto);
     }
 
     @Post('logout')

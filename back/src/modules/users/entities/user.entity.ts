@@ -53,6 +53,16 @@ export class User {
   @Column({ type: 'varchar', nullable: true, unique: true })
   googleId: string | null;
 
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  resetPasswordToken: string | null;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires: Date | null;
+
   @ApiProperty({
     default: true,
     description: 'Falso si el usuario fue dado de baja (borrado lógico)',

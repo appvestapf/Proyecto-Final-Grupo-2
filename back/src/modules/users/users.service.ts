@@ -7,6 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersRepository } from './users.repository';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -50,6 +51,25 @@ export class UsersService {
   }
   findByEmail(email: string) {
     return this.usersRepository.findOneBy({ email });
+  }
+
+  findByResetToken(token: string) {
+    return this.usersRepository.findOneBy({ resetPasswordToken: token });
+  }
+
+  async setResetPasswordToken(email: string, token: string, expires: Date) {
+    const user = await this.findByEmail(email);
+    if (!user) return null;
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = expires;
+    return this.usersRepository.save(user);
+  }
+
+  async resetPassword(user: User, newPassword: string) {
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    return this.usersRepository.save(user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
