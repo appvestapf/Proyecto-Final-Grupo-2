@@ -72,6 +72,20 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  async registerFailedLogin(user: User) {
+    user.failedLoginAttempts += 1;
+    if (user.failedLoginAttempts >= 5) {
+      user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+    }
+    return this.usersRepository.save(user);
+  }
+
+  async resetFailedLogins(user: User) {
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    return this.usersRepository.save(user);
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.findOne(id);
     Object.assign(user, updateUserDto);

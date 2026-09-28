@@ -63,6 +63,16 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires: Date | null;
 
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ default: 0 })
+  failedLoginAttempts: number;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
+
   @ApiProperty({
     default: true,
     description: 'Falso si el usuario fue dado de baja (borrado lógico)',
