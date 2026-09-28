@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { propertyService } from '@/services/propertyService';
@@ -12,6 +12,13 @@ import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 
+// Importaciones del Calendario
+import { DateRange } from 'react-date-range';
+import { es } from 'date-fns/locale';
+import { format } from 'date-fns';
+import 'react-date-range/dist/styles.css'; 
+import 'react-date-range/dist/theme/default.css'; 
+
 export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
@@ -22,9 +29,16 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // Estados para reservas
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Estados para reservas con react-date-range
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: new Date(),
+      endDate: new Date(),
+      key: 'selection'
+    }
+  ]);
 
   // Estados para citas (Appointments)
   const [showAppointment, setShowAppointment] = useState(false);
@@ -56,10 +70,23 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     };
   }, [showGallery]);
 
+  // Cerrar el calendario al hacer clic afuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calRef.current && !calRef.current.contains(event.target as Node)) {
+        setShowCalendar(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Nueva lógica matemática para leer fechas de la librería
   const calculateNights = () => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
+    const start = dateRange[0].startDate;
+    const end = dateRange[0].endDate;
+    if (start.getTime() === end.getTime()) return 0;
+    
     const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
@@ -115,12 +142,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     }
 
     if (property?.rentalType === 'Temporario') {
-      if (!startDate || !endDate) {
-        toast.error('Por favor selecciona las fechas de llegada y salida');
-        return;
-      }
-      if (nights < 1) {
-        toast.error('La fecha de salida debe ser posterior a la llegada');
+      if (dateRange[0].startDate.getTime() === dateRange[0].endDate.getTime()) {
+        toast.error('Por favor selecciona un rango de fechas válido');
         return;
       }
     }
@@ -133,8 +156,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       const payload: any = { propertyId: property?.id };
       
       if (property?.rentalType === 'Temporario') {
-        payload.startDate = startDate;
-        payload.endDate = endDate;
+        payload.startDate = format(dateRange[0].startDate, 'yyyy-MM-dd');
+        payload.endDate = format(dateRange[0].endDate, 'yyyy-MM-dd');
       }
 
       const resResponse = await fetch(`${API_URL}/reservations`, {
@@ -176,8 +199,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-slate-500">
-        <Loader2 className="animate-spin" size={40} />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-muted bg-app">
+        <Loader2 className="animate-spin text-primary" size={40} />
         <p>Cargando detalles del inmueble...</p>
       </div>
     );
@@ -188,20 +211,20 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   return (
     <>
       {showGallery && (
-        <div className="fixed inset-0 z-[9999] bg-white overflow-y-auto">
-          <div className="sticky top-0 w-full bg-white/90 backdrop-blur-md z-[9999] py-4 px-6 flex justify-end shadow-sm">
+        <div className="fixed inset-0 z-[9999] bg-surface overflow-y-auto">
+          <div className="sticky top-0 w-full bg-surface/90 backdrop-blur-md z-[9999] py-4 px-6 flex justify-end shadow-sm">
             <button 
               onClick={() => setShowGallery(false)} 
-              className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+              className="p-3 bg-app hover:bg-subtle rounded-full transition-colors cursor-pointer flex items-center justify-center text-main"
             >
-              <X size={24} className="text-slate-900" />
+              <X size={24} />
             </button>
           </div>
           
           <div className="max-w-5xl mx-auto px-4 pb-20 pt-4">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">{property.title}</h2>
-              <p className="text-slate-500">{property.capacity} huéspedes • {property.rooms} dorm. • {property.bathrooms} baños</p>
+              <h2 className="text-3xl font-bold text-main mb-2">{property.title}</h2>
+              <p className="text-muted">{property.capacity} huéspedes • {property.rooms} dorm. • {property.bathrooms} baños</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -215,102 +238,116 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      <main className="w-full bg-white pb-24">
+      <main className="w-full bg-app pb-24 transition-colors duration-200">
         <div className="relative w-full h-[40vh] md:h-[55vh] flex overflow-hidden">
-          <div className="relative w-1/2 h-full border-r-4 border-white">
+          <div className="relative w-1/2 h-full border-r-4 border-app">
             <Image src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={property.title} fill className="object-cover" priority />
           </div>
           <div className="relative w-1/2 h-full">
             <Image src={property.images[1] || property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={`${property.title} interior`} fill className="object-cover" priority />
           </div>
           <div className="absolute bottom-6 right-6 z-10 flex gap-3">
-            <button onClick={() => setShowGallery(true)} className="bg-white px-4 py-2 text-sm font-semibold text-base-4 rounded-[8px] shadow-md border border-slate-200 hover:bg-slate-50 cursor-pointer flex items-center gap-2">
+            <button onClick={() => setShowGallery(true)} className="bg-surface px-4 py-2 text-sm font-semibold text-main rounded-[8px] shadow-md border border-subtle hover:bg-app cursor-pointer flex items-center gap-2 transition-colors">
               Ver las {property.images.length} fotos
             </button>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
-          <div className="text-xs text-base-3 mb-4 uppercase tracking-wider font-medium">
+          <div className="text-xs text-muted mb-4 uppercase tracking-wider font-bold">
             Vesta {'>'} {property.location}
           </div>
 
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
             <div className="flex-1">
-              {/* Título e ícono de Favorito integrado */}
               <div className="flex items-start justify-between gap-4 mb-6">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-base-4 tracking-tight">
+                <h1 className="text-4xl md:text-5xl font-extrabold text-main tracking-tight">
                   {property.title}
                 </h1>
                 <FavoriteButton propertyId={property.id} size={24} className="shrink-0 mt-2" />
               </div>
 
-              <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-medium text-base-4 mb-8">
-                <span className="flex items-center gap-2"><Users size={20} className="text-base-3" /> {property.capacity} huéspedes</span>
-                <span className="flex items-center gap-2"><Bed size={20} className="text-base-3" /> {property.rooms} dorm.</span>
-                <span className="flex items-center gap-2"><Bath size={20} className="text-base-3" /> {property.bathrooms} baños</span>
-                <span className="flex items-center gap-2"><Scaling size={20} className="text-base-3" /> {property.area} m²</span>
+              <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-medium text-main mb-8">
+                <span className="flex items-center gap-2"><Users size={20} className="text-muted" /> {property.capacity} huéspedes</span>
+                <span className="flex items-center gap-2"><Bed size={20} className="text-muted" /> {property.rooms} dorm.</span>
+                <span className="flex items-center gap-2"><Bath size={20} className="text-muted" /> {property.bathrooms} baños</span>
+                <span className="flex items-center gap-2"><Scaling size={20} className="text-muted" /> {property.area} m²</span>
               </div>
 
-              <hr className="border-t border-slate-200 mb-8" />
+              <hr className="border-t border-subtle mb-8" />
 
-              <div className="text-base-4/80 text-lg leading-relaxed mb-10">
+              <div className="text-main/80 text-lg leading-relaxed mb-10">
                 <p>{property.description}</p>
               </div>
 
-              <hr className="border-t border-slate-200 mb-8" />
+              <hr className="border-t border-subtle mb-8" />
 
               <div className="mb-10">
-                <h3 className="text-2xl font-bold text-base-4 mb-6 tracking-tight">Garantía Vesta</h3>
+                <h3 className="text-2xl font-bold text-main mb-6 tracking-tight">Garantía Vesta</h3>
                 <div className="space-y-4">
                   <div className="flex gap-4">
                     <CheckCircle2 className="text-[#EAB308] shrink-0" fill="#FEF08A" size={24} />
                     <div>
-                      <strong className="text-base-4 block">Propiedades verificadas</strong>
-                      <span className="text-base-3 text-sm">Rechazamos miles de propiedades para que tú no tengas que preocuparte.</span>
+                      <strong className="text-main block">Propiedades verificadas</strong>
+                      <span className="text-muted text-sm">Rechazamos miles de propiedades para que tú no tengas que preocuparte.</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* CAJA LATERAL FLOTANTE */}
+            {/* CAJA LATERAL FLOTANTE (Con mejoras para Modo Oscuro) */}
             <div className="w-full lg:w-[400px]">
               <div className="sticky top-24 space-y-6">
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
+                <div className="bg-surface border border-subtle rounded-3xl p-6 shadow-xl dark:shadow-none transition-colors duration-200">
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <span className="text-2xl font-bold text-base-4">US$ {property.price}</span>
-                      <span className="text-base-3"> / {property.priceUnit}</span>
+                      <span className="text-2xl font-bold text-main">US$ {property.price}</span>
+                      <span className="text-muted"> / {property.priceUnit}</span>
                     </div>
                   </div>
 
+                  {/* NUEVO CALENDARIO (react-date-range) */}
                   {property.rentalType === 'Temporario' && (
-                    <div className="grid grid-cols-2 gap-3 mb-6 border border-slate-200 rounded-xl p-3 bg-slate-50">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Llegada</label>
-                        <input 
-                          type="date" 
-                          value={startDate} 
-                          onChange={(e) => setStartDate(e.target.value)} 
-                          min={new Date().toISOString().split("T")[0]}
-                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
-                        />
+                    <div ref={calRef} className="relative mb-6">
+                      <div 
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        className="flex border border-subtle rounded-2xl p-3 bg-surface hover:bg-app cursor-pointer transition-colors"
+                      >
+                        <div className="flex-1 flex flex-col justify-center px-2">
+                          <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Llegada</label>
+                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
+                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].startDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          </span>
+                        </div>
+                        <div className="w-[1px] bg-subtle my-1" />
+                        <div className="flex-1 flex flex-col justify-center px-4">
+                          <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Salida</label>
+                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
+                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].endDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="border-l border-slate-200 pl-3">
-                        <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Salida</label>
-                        <input 
-                          type="date" 
-                          value={endDate} 
-                          onChange={(e) => setEndDate(e.target.value)} 
-                          min={startDate || new Date().toISOString().split("T")[0]}
-                          className="w-full bg-transparent text-sm font-semibold outline-none text-slate-800"
-                        />
-                      </div>
+
+                      {/* Popover del Calendario */}
+                      {showCalendar && (
+                        <div className="absolute top-full right-0 mt-2 bg-white rounded-3xl shadow-xl overflow-hidden z-50 border border-slate-200 text-slate-900" onClick={(e) => e.stopPropagation()}>
+                          <DateRange
+                            ranges={dateRange}
+                            onChange={(item: any) => setDateRange([item.selection])}
+                            minDate={new Date()}
+                            months={1} // Mostramos 1 mes para que entre perfecto en la tarjeta
+                            direction="horizontal"
+                            locale={es}
+                            showDateDisplay={false}
+                            rangeColors={['#0055FF']} // Azul Vesta
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <div className="space-y-3 text-sm text-base-3 mb-6">
+                  <div className="space-y-3 text-sm text-muted mb-6">
                     <div className="flex justify-between">
                       {property.rentalType === 'Temporario' ? (
                         <span>US$ {property.price} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
@@ -319,7 +356,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       )}
                       <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-base-4 pt-3 border-t border-slate-200 text-lg">
+                    <div className="flex justify-between font-bold text-main pt-3 border-t border-subtle text-lg">
                       <span>Total</span>
                       <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
                     </div>
@@ -329,9 +366,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     variant="primary" 
                     onClick={handleReservation}
                     disabled={processingPayment || !property.isAvailable}
-                    className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 ${
+                    className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 rounded-[14px] ${
                       !property.isAvailable 
-                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                        ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed' 
                         : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer'
                     }`}
                   >
@@ -345,15 +382,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   </Button>
                   
                   {/* SECCIÓN AGENDAR CITA */}
-                  <div className="mt-6 border-t border-slate-200 pt-6">
+                  <div className="mt-6 border-t border-subtle pt-6">
                     <Button
                       variant="outline"
                       onClick={() => setShowAppointment(!showAppointment)}
                       disabled={!property.isAvailable}
-                      className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                      className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all rounded-[14px] ${
                         !property.isAvailable 
-                          ? 'border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                          ? 'border-subtle text-muted cursor-not-allowed'
+                          : 'border-subtle text-main hover:bg-app'
                       }`}
                     >
                       <CalendarClock size={18} />
@@ -361,31 +398,31 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     </Button>
 
                     {showAppointment && (
-                      <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4 animation-fade-in">
-                        <p className="text-xs font-bold uppercase text-slate-500">Elige cuándo ir:</p>
+                      <div className="mt-4 p-4 bg-app border border-subtle rounded-2xl space-y-4 animation-fade-in">
+                        <p className="text-xs font-bold uppercase text-muted tracking-wider">Elige cuándo ir:</p>
                         <div className="grid grid-cols-2 gap-3">
                           <input
                             type="date"
                             value={appointmentDate}
                             min={new Date().toISOString().split("T")[0]}
                             onChange={(e) => setAppointmentDate(e.target.value)}
-                            className="w-full bg-white border border-slate-200 text-sm font-medium outline-none text-slate-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/20"
+                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark]"
                           />
                           <input
                             type="time"
                             value={appointmentTime}
                             onChange={(e) => setAppointmentTime(e.target.value)}
-                            className="w-full bg-white border border-slate-200 text-sm font-medium outline-none text-slate-800 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/20"
+                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark]"
                           />
                         </div>
                         <Button
                           variant="primary"
                           onClick={handleScheduleAppointment}
                           disabled={processingAppointment}
-                          className="w-full py-2.5 text-sm"
+                          className="w-full py-2.5 text-sm rounded-[12px]"
                         >
                           {processingAppointment ? (
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center justify-center gap-2">
                               <Loader2 className="animate-spin" size={16} /> Procesando...
                             </span>
                           ) : (
@@ -396,7 +433,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     )}
                   </div>
 
-                  <p className="text-center text-xs text-base-3 mt-4">
+                  <p className="text-center text-xs text-muted mt-4 font-medium">
                     Pagos asegurados a través de Mercado Pago.
                   </p>
                   

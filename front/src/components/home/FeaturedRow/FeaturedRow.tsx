@@ -25,14 +25,15 @@ export const FeaturedRow = ({ title, properties, href }: FeaturedRowProps) => {
   return (
     <section className="w-full py-8 px-6 md:px-12 lg:px-20">
       <div className="w-full flex items-center justify-between mb-6">
-        <Link href={href} className="text-2xl font-bold text-slate-900 flex items-center gap-2 cursor-pointer hover:underline">
+        {/* CORRECCIÓN: text-main en lugar de text-slate-900 */}
+        <Link href={href} className="text-2xl font-bold text-main flex items-center gap-2 cursor-pointer hover:underline">
           {title} <ArrowRight size={22} />
         </Link>      
         <div className="hidden md:flex gap-3">
-          <button onClick={() => scroll('left')} className="p-2 rounded-full border border-slate-200 bg-white shadow-sm hover:shadow-md hover:bg-slate-50 transition-all cursor-pointer">
+          <button onClick={() => scroll('left')} className="p-2 rounded-full border border-subtle bg-surface text-main shadow-sm hover:shadow-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer">
             <ChevronLeft size={20} />
           </button>
-          <button onClick={() => scroll('right')} className="p-2 rounded-full border border-slate-200 bg-white shadow-sm hover:shadow-md hover:bg-slate-50 transition-all cursor-pointer">
+          <button onClick={() => scroll('right')} className="p-2 rounded-full border border-subtle bg-surface text-main shadow-sm hover:shadow-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer">
             <ChevronRight size={20} />
           </button>
         </div>
