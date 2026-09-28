@@ -23,9 +23,17 @@ export default function AyudaPage() {
   return (
     <main className="min-h-screen bg-app transition-colors duration-200">
       
-      {/* HERO SECTION */}
-      <section className="bg-primary pt-24 pb-20 px-4 text-center">
-        <div className="max-w-3xl mx-auto">
+      {/* HERO SECTION CON IMAGEN DE FONDO */}
+      <section className="relative pt-32 pb-28 px-4 text-center">
+        {/* Imagen base */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=2000&auto=format&fit=crop')" }} 
+        />
+        {/* Overlay oscuro para asegurar contraste */}
+        <div className="absolute inset-0 bg-slate-900/65" />
+
+        <div className="relative z-10 max-w-3xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
             ¿En qué podemos ayudarte?
           </h1>
@@ -41,15 +49,15 @@ export default function AyudaPage() {
         </div>
       </section>
 
-      {/* CATEGORÍAS (Bento Grid) */}
-      <section className="max-w-5xl mx-auto px-4 -mt-10 relative z-10">
+      {/* CATEGORÍAS (Bento Grid) superpuestas a la imagen */}
+      <section className="max-w-5xl mx-auto px-4 -mt-12 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {CATEGORIES.map((cat, idx) => {
             const Icon = cat.icon;
             return (
               <button 
                 key={idx} 
-                className="bg-surface border border-subtle p-6 rounded-3xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all text-left flex flex-col items-start gap-4 cursor-pointer"
+                className="bg-surface border border-subtle p-6 rounded-3xl shadow-md hover:shadow-lg hover:-translate-y-1 transition-all text-left flex flex-col items-start gap-4 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-primary">
                   <Icon size={24} />
@@ -73,7 +81,7 @@ export default function AyudaPage() {
             <div key={idx} className="bg-surface border border-subtle rounded-2xl overflow-hidden shadow-sm transition-colors">
               <button 
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="w-full px-6 py-5 text-left flex justify-between items-center cursor-pointer hover:bg-app"
+                className="w-full px-6 py-5 text-left flex justify-between items-center cursor-pointer hover:bg-app transition-colors"
               >
                 <span className="font-semibold text-main">{faq.q}</span>
                 <ChevronDown className={`text-muted transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} size={20} />
@@ -92,7 +100,7 @@ export default function AyudaPage() {
       {/* CTA FINAL */}
       <section className="bg-surface border-t border-subtle py-16 px-4 text-center">
         <div className="max-w-2xl mx-auto">
-          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-muted">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-muted shadow-sm">
             <Mail size={32} />
           </div>
           <h2 className="text-2xl font-bold text-main mb-4">¿No encontraste lo que buscabas?</h2>

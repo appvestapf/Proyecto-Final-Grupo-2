@@ -107,7 +107,7 @@ export const PromoSlider = () => {
             Ver departamentos en alquiler
           </Link>
           
-          <Link href="/support" className="flex items-center gap-2 font-bold text-slate-900 dark:text-white hover:underline w-max cursor-pointer text-sm lg:text-base">
+          <Link href="/como-alquilar" className="flex items-center gap-2 font-bold text-slate-900 dark:text-white hover:underline w-max cursor-pointer text-sm lg:text-base">
             Cómo alquilar en Vesta <ArrowRight size={16} />
           </Link>
         </div>
