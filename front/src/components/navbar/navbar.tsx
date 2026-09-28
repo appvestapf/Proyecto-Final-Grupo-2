@@ -69,7 +69,7 @@ export default function Navbar() {
   return (
     <>
       <header className={`w-full z-50 ${wrapperStyles}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-4 lg:px-6 h-12 sm:h-18 flex items-center justify-between gap-2">
           
           {/* Izquierda: Menú Hamburguesa + Links Desktop */}
           <div className="flex items-center gap-3">
