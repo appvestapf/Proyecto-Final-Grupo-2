@@ -38,7 +38,7 @@ export default function PagoExitosoPage() {
         {/* Acciones principales con botones idénticos a los del Navbar */}
         <div className="flex flex-col gap-3">
           <Link
-            href="/mis-alquileres"
+            href="/perfil/alquileres"
             className="w-full text-center text-sm font-medium bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm"
           >
             Ir a Mis Alquileres
