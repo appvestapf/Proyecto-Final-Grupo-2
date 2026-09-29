@@ -12,51 +12,49 @@ function CatalogContent() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
-useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
-      const data = await propertyService.getProperties();
-      setProperties(data);
+      setLoading(true);
+      try {
+        const data = await propertyService.getProperties();
+        setProperties(data);
 
-      const urlLocation = searchParams.get('location');
-      const urlCapacity = searchParams.get('capacity');
-      const urlRentalType = searchParams.get('rentalType');
+        const urlLocation = searchParams.get('location');
+        const urlCapacity = searchParams.get('capacity');
+        const urlRentalType = searchParams.get('rentalType');
 
-      // --- 🔍 INICIO DE DIAGNÓSTICO ---
-      console.log("🔍 1. Parámetro en URL (urlRentalType):", urlRentalType);
-      console.log("🔍 2. Primera propiedad del backend:", data[0]?.name, "| Tipo:", data[0]?.rentalType);
-      // --- FIN DE DIAGNÓSTICO ---
+        let result = data;
 
-      let result = data;
+        if (urlLocation) {
+          result = result.filter(p => 
+            p.location.toLowerCase().includes(urlLocation.toLowerCase()) ||
+            p.title.toLowerCase().includes(urlLocation.toLowerCase())
+          );
+        }
 
-      if (urlLocation) {
-        result = result.filter(p => 
-          p.location.toLowerCase().includes(urlLocation.toLowerCase()) ||
-          p.title.toLowerCase().includes(urlLocation.toLowerCase())
-        );
+        if (urlCapacity) {
+          const cap = parseInt(urlCapacity, 10);
+          result = result.filter(p => p.capacity >= cap);
+        }
+
+        if (urlRentalType) {
+          result = result.filter(p => 
+            p.rentalType?.toLowerCase() === urlRentalType.toLowerCase()
+          );
+        }
+
+        setFilteredProperties(result);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error("Error al cargar propiedades:", error);
+      } finally {
+        setLoading(false);
       }
-
-      if (urlCapacity) {
-        const cap = parseInt(urlCapacity, 10);
-        result = result.filter(p => p.capacity >= cap);
-      }
-
-      if (urlRentalType) {
-        result = result.filter(p => {
-          const match = p.rentalType?.toLowerCase() === urlRentalType.toLowerCase();
-          // Log para ver si las palabras son exactamente iguales o si hay espacios invisibles
-          if (!match) {
-            console.log(`❌ Filtrado descarta: '${p.rentalType}' (BD) vs '${urlRentalType}' (URL)`);
-          }
-          return match;
-        });
-        console.log("🔍 3. Resultados que sobrevivieron al filtro:", result.length);
-      }
-
-      setFilteredProperties(result);
-      setCurrentPage(1);
     };
+
     fetchData();
   }, [searchParams]);
 
@@ -94,27 +92,47 @@ useEffect(() => {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <h1 className="text-3xl font-bold text-slate-900 mb-8 text-center">Catálogo de Inmuebles</h1>
+      <h1 className="text-3xl font-bold text-main mb-8 text-center tracking-tight">
+        Catálogo de Inmuebles
+      </h1>
       
       <SearchBar onSearch={handleSearch} />
 
-      {currentItems.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center py-6">
+          {[...Array(6)].map((_, i) => (
+            <div 
+              key={i} 
+              className="w-full max-w-sm h-80 bg-surface border border-subtle rounded-2xl animate-pulse"
+            />
+          ))}
+        </div>
+      ) : currentItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
           {currentItems.map((property) => (
             <CardInmueble key={property.id} data={property} />
           ))}
         </div>
       ) : (
-        <p className="text-center text-slate-500 py-10">No se encontraron inmuebles con los filtros seleccionados.</p>
+        <div className="text-center py-16 px-4 bg-surface border border-subtle rounded-2xl my-6">
+          <p className="text-main font-medium text-lg mb-1">
+            No se encontraron inmuebles
+          </p>
+          <p className="text-muted text-sm">
+            Intenta ajustando o borrando algunos de los filtros seleccionados.
+          </p>
+        </div>
       )}
 
-      {totalPages > 1 && (
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages}
-          onPrev={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-          onNext={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-        />
+      {!loading && totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages}
+            onPrev={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            onNext={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          />
+        </div>
       )}
     </div>
   );
@@ -122,8 +140,12 @@ useEffect(() => {
 
 export default function CatalogPage() {
   return (
-    <main className="min-h-screen bg-transparent py-10 px-4">
-      <Suspense fallback={<p className="text-center mt-10 text-slate-500">Cargando catálogo...</p>}>
+    <main className="min-h-screen bg-app py-10 px-4 transition-colors duration-200">
+      <Suspense fallback={
+        <div className="flex justify-center items-center py-20 text-muted">
+          Cargando catálogo...
+        </div>
+      }>
         <CatalogContent />
       </Suspense>
     </main>

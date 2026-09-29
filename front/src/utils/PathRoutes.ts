@@ -1,7 +1,6 @@
 export enum PATHROUTES {
   LANDING = "/",
   HOME = "/catalog",
-  FAVORITES = "/favoritos",
-  MY_RENTALS = "/mis-alquileres", 
+  PROFILE = "/perfil",
   DASHBOARD = "/admin/dashboard", 
 }

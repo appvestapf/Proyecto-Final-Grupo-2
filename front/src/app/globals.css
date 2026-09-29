@@ -1,22 +1,67 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #0055FF; 
-  --color-secondary: #10B981; 
-  --color-accent: #EF4444; 
-  --color-base-1: #FFFFFF;
-  --color-base-2: #F8F9FB; 
-  --color-base-3: #6B7280;
-  --color-base-4: #111827;
+@variant dark (&:where(.dark, .dark *));
 
+/* ==========================================================================
+   SISTEMA DE TOKENS SEMÁNTICOS (MODO CLARO Y OSCURO)
+   --------------------------------------------------------------------------
+   Usa estas variables mediante las clases de Tailwind configuradas en @theme.
+   Evita usar clases de color fijas (ej. bg-white, text-black) o variantes 
+   'dark:' manuales para asegurar la escalabilidad del sistema.
+   ========================================================================== */
+
+:root {
+  /* MODO CLARO */
+  --bg-app: #f8f9fb;        /* Fondo general de la página */
+  --bg-surface: #ffffff;    /* Fondo de contenedores, tarjetas, modales e inputs */
+  --text-main: #111827;     /* Texto principal, títulos y etiquetas de alto contraste */
+  --text-muted: #6b7280;    /* Textos secundarios, descripciones, placeholders y subtítulos */
+  --border-subtle: #e5e7eb; /* Bordes suaves para tarjetas, divisores e inputs */
+  --dot-color: #cbd5e1;     /* Color de los puntos de fondo en modo claro */
+}
+
+.dark {
+  /* MODO OSCURO */
+  --bg-app: #0f172a;        /* Fondo general de la página */
+  --bg-surface: #1e293b;    /* Fondo de contenedores, tarjetas, modales e inputs */
+  --text-main: #f8fafc;     /* Texto principal, títulos y etiquetas de alto contraste */
+  --text-muted: #94a3b8;    /* Textos secundarios, descripciones, placeholders y subtítulos */
+  --border-subtle: #334155; /* Bordes suaves para tarjetas, divisores e inputs */
+  --dot-color: #1e293b;     /* Color de los puntos de fondo en modo oscuro */
+}
+
+@theme {
+  /* --- Colores de Marca --- */
+  --color-primary: #0055FF;   /* Azul Vesta principal */
+  --color-secondary: #10B981; /* Verde de éxito / estados */
+  --color-accent: #EF4444;    /* Rojo de error / destacados */
+
+  /* --- Mapeo de Clases Utilitarias de Tailwind ---
+     Ejemplos de uso en componentes:
+     - bg-app        -> Fondo de la pantalla principal
+     - bg-surface    -> Fondo de Cards, Modales, Dropdowns y Forms
+     - text-main     -> h1, h2, h3, párrafos principales
+     - text-muted    -> Textos secundarios, fechas, íconos tenues
+     - border-subtle -> border-b, border en Cards o Inputs
+  -------------------------------------------------- */
+  --color-app: var(--bg-app);
+  --color-surface: var(--bg-surface);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--border-subtle);
+
+  /* --- Tipografías del Proyecto --- */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), var(--font-sans);
 }
 
+/* Base global de la aplicación */
 body {
-  background-color: var(--color-base-2);
-  background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+  background-color: var(--bg-app);
+  background-image: radial-gradient(var(--dot-color) 1px, transparent 1px);
   background-size: 32px 32px;
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4 {

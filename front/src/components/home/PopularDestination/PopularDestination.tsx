@@ -7,7 +7,7 @@ const DESTINATIONS = [
     name: "Buenos Aires",
     country: "Argentina",
     image: "https://images.unsplash.com/photo-1589909202802-8f4aadce1849",
-    colSpan: "lg:col-span-2", // Esta tarjeta será más ancha para romper la simetría (estilo Bento Grid)
+    colSpan: "lg:col-span-2",
   },
   {
     id: 2,
@@ -34,8 +34,8 @@ const DESTINATIONS = [
     id: 5,
     name: "Montevideo",
     country: "Uruguay",
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c", // Usando una imagen residencial bonita
-    colSpan: "lg:col-span-3", // Tarjeta ancha abajo
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
+    colSpan: "lg:col-span-3",
   },
 ];
 
@@ -43,15 +43,14 @@ export const PopularDestination = () => {
   return (
     <section className="w-full max-w-[1350px] mx-auto py-4 px-6 md:px-12 lg:px-8">
       <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-3">
+        <h2 className="text-3xl md:text-4xl font-bold text-main tracking-tight mb-3">
           Destinos más elegidos
         </h2>
-        <p className="text-slate-500 text-lg">
+        <p className="text-muted text-lg">
           Explora propiedades verificadas en las ciudades con mayor demanda de la región.
         </p>
       </div>
 
-      {/* Grilla asimétrica (Bento Grid) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {DESTINATIONS.map((dest) => (
           <Link 
@@ -59,18 +58,13 @@ export const PopularDestination = () => {
             href={`/catalog?location=${dest.name}`}
             className={`group relative h-[250px] md:h-[300px] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 ${dest.colSpan}`}
           >
-            {/* Imagen de fondo con efecto zoom en hover */}
             <Image 
               src={dest.image} 
               alt={`Alquileres en ${dest.name}`}
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-110"
             />
-            
-            {/* Gradiente oscuro para que el texto sea siempre legible */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
-
-            {/* Contenido (Textos flotantes) */}
             <div className="absolute bottom-0 left-0 p-6 w-full">
               <span className="text-white/80 text-sm font-semibold uppercase tracking-wider mb-1 block">
                 {dest.country}

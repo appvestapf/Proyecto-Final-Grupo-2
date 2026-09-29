@@ -18,20 +18,14 @@ export const NavItems = [
   // --- RUTAS EXCLUSIVAS DEL INQUILINO (Usuario Registrado) ---
   {
     id: 3,
-    nameToRender: "Mis Favoritos",
-    route: PATHROUTES.FAVORITES,
-    roles: ["inquilino"], // El Admin no necesita favoritos de alquiler, tiene su panel
-  },
-  {
-    id: 4,
-    nameToRender: "Mis Alquileres", // Aquí ve sus visitas agendadas, señas y chatbot
-    route: PATHROUTES.MY_RENTALS,
-    roles: ["inquilino"],
+    nameToRender: "Mi Perfil",
+    route: PATHROUTES.PROFILE,
+    roles: ["inquilino"], // El Admin no necesita datos de alquiler, tiene su panel
   },
 
   // --- RUTA EXCLUSIVA DEL ADMINISTRADOR ---
   {
-    id: 5,
+    id: 4,
     nameToRender: "Panel de Gestión", // Centraliza Métricas, CRUD, Reservas y Visitas
     route: PATHROUTES.DASHBOARD,
     roles: ["admin"],
