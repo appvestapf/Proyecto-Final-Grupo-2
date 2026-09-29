@@ -105,8 +105,7 @@ export default function DashboardOverviewPage() {
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }} 
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => [`US$ ${value.toLocaleString('es-AR')}`, 'Ingresos']}
-                />
+                  formatter={(value: any) => [`US$ ${Number(value).toLocaleString('es-AR')}`, 'Ingresos']} />
                 <Bar dataKey="total" fill="#0055FF" radius={[6, 6, 0, 0]} maxBarSize={50} />
               </BarChart>
             </ResponsiveContainer>
