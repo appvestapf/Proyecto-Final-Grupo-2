@@ -119,5 +119,86 @@ export class ReservationService {
             order: { createdAt: 'DESC' }
         });
     }
+ async getDashboardMetrics() {
+        // 1. Métricas Generales
+        const { revenue } = await this.reservationsRepository
+            .createQueryBuilder('reservation')
+            .select('SUM(reservation.totalPrice)', 'revenue')
+            .where('reservation.status = :status', { status: ReservationStatus.CONFIRMED })
+            .getRawOne();
+
+        const activeProperties = await this.propertiesRepository.count({
+            where: { isDeleted: false, isAvailable: true }
+        });
+
+        const pendingReservations = await this.reservationsRepository.count({
+            where: { status: ReservationStatus.PENDING }
+        });
+
+        const confirmedReservations = await this.reservationsRepository.count({
+            where: { status: ReservationStatus.CONFIRMED }
+        });
+        
+        let occupancyRate = 0;
+        if (activeProperties > 0) {
+            occupancyRate = Math.round((confirmedReservations / activeProperties) * 100);
+        }
+
+        // 2. Gráfico: Ingresos de los últimos 6 meses
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        const recentConfirmed = await this.reservationsRepository.find({
+            where: { status: ReservationStatus.CONFIRMED },
+        });
+
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const revenueMap = new Map();
+        
+        // Creamos los últimos 6 meses en orden cronológico con valor 0
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            revenueMap.set(monthNames[d.getMonth()], 0);
+        }
+
+        // Sumamos el dinero al mes correspondiente
+        recentConfirmed.forEach(res => {
+            const resDate = new Date(res.createdAt);
+            if (resDate >= sixMonthsAgo) {
+                const month = monthNames[resDate.getMonth()];
+                if (revenueMap.has(month)) {
+                    revenueMap.set(month, revenueMap.get(month) + Number(res.totalPrice));
+                }
+            }
+        });
+
+        const revenueData = Array.from(revenueMap, ([name, total]) => ({ name, total }));
+
+        // 3. Actividad Reciente: Últimas 5 reservas con datos del usuario y propiedad
+        const recentActivityRaw = await this.reservationsRepository.find({
+            relations: { property: true, user: true }, 
+            order: { createdAt: 'DESC' },
+            take: 5
+        });
+
+        const recentActivity = recentActivityRaw.map(res => ({
+            id: res.id,
+            user: res.user?.name || 'Usuario desconocido',
+            property: res.property?.name || 'Propiedad eliminada',
+            status: res.status,
+            date: res.createdAt,
+            amount: Number(res.totalPrice)
+        }));
+
+        return {
+            monthlyRevenue: Number(revenue) || 0,
+            activeProperties,
+            pendingReservations,
+            occupancyRate: occupancyRate > 100 ? 100 : occupancyRate,
+            revenueData,
+            recentActivity
+        };
+    }
 }
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Get, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, Get, Req, UseGuards,ForbiddenException } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ReservationService } from "./reservation.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
@@ -26,5 +26,19 @@ export class ReservationController {
     findMyReservations(@Req() req: Request) {
         const user = req.user as { id: string };
         return this.reservationService.findByUser(user.id);
+    }
+    @Get('admin/metrics')
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard('jwt'))
+    @ApiOperation({ summary: 'Obtener métricas para el dashboard de administrador' })
+    getDashboardMetrics(@Req() req: Request) {
+        const user = req.user as { isAdmin: boolean };
+        
+        // Medida de seguridad: Bloquear si no es admin
+        if (!user.isAdmin) {
+            throw new ForbiddenException('Acceso denegado. Solo administradores.');
+        }
+        
+        return this.reservationService.getDashboardMetrics();
     }
 }
