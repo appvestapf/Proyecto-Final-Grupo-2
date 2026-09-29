@@ -114,7 +114,7 @@ export class PropertiesService {
     return this.propertiesRepository.save(property);
   }
 
-  async remove(id: string, requesterId: string, isAdmin: boolean) {
+ async remove(id: string, requesterId: string, isAdmin: boolean) {
     const property = await this.findOne(id);
 
     if (property.owner?.id !== requesterId && !isAdmin) {
@@ -122,8 +122,9 @@ export class PropertiesService {
         'No podés eliminar una propiedad que no es tuya',
       );
     }
-
-    property.isAvailable = false;
+    property.isDeleted = true;
+    property.isAvailable = false; 
+    
     return this.propertiesRepository.save(property);
   }
 
