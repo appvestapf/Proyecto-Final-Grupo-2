@@ -137,6 +137,20 @@ export class MailService {
     );
   }
 
+  async sendPasswordReset(to: string, name: string, token: string) {
+    await this.send(
+      to,
+      'Restablecer contraseña - Vesta',
+      this.buildEmailTemplate({
+        title: `Hola, ${name}`,
+        message:
+          'Recibimos una solicitud para restablecer tu contraseña. Si no fuiste vos, podés ignorar este mail. El link expira en 1 hora.',
+        buttonText: 'Restablecer contraseña',
+        buttonPath: `/auth/reset-password?token=${token}`,
+      }),
+    );
+  }
+
   private async send(to: string, subject: string, html: string) {
     try {
       await sgMail.send({

@@ -1,4 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import type { Relation } from "typeorm";
 import { User } from "../../users/entities/user.entity";
 import { Property } from "../../properties/entities/property.entity";
 
@@ -23,9 +24,9 @@ export class Appointment {
 
     @ManyToOne(() => User, (user) => user.appointments)
     @JoinColumn({ name: 'userId' })
-    user: User;
+    user: Relation<User>;
 
     @ManyToOne(() => Property, (property) => property.appointments)
     @JoinColumn({ name: 'propertyId' })
-    property: Property;
+    property: Relation<Property>;
 }

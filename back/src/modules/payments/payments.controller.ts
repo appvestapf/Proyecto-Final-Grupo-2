@@ -3,7 +3,7 @@ import { PaymentService } from "./payments.service";
 import { RequestWithUser } from "../auth/interfaces/request-whit-user.interface";
 import { AuthGuard } from "@nestjs/passport";
 import { ApiBearerAuth, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { Request } from "express";
+import type { Request } from "express";
 
 @Controller('payments')
 export class PaymentsController {

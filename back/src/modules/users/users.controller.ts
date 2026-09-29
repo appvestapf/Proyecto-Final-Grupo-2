@@ -31,7 +31,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import type { Request } from 'express';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
 
 @ApiTags('users')
 @Controller('users')
@@ -99,20 +102,15 @@ export class UsersController {
 
   @Get()
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Listar todos los usuarios' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios', type: [User] })
   @ApiResponse({
     status: 403,
     description: 'Solo un admin puede listar todos los usuarios',
   })
-  findAll(@Req() req: Request) {
-    const requester = req.user as { isAdmin: boolean };
-    if (!requester.isAdmin) {
-      throw new ForbiddenException(
-        'Solo un admin puede listar todos los usuarios',
-      );
-    }
+  findAll() {
     return this.usersService.findAll();
   }
 

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import type { Relation } from "typeorm";
 import { PaymentStatus } from "../enums/payment-status.enum";
 import { Reservation } from "../../reservations/entities/reservation.entity";
 
@@ -30,5 +31,5 @@ export class Payment {
 
     @ManyToOne(()=> Reservation,(reservation)=>reservation.payments)
     @JoinColumn({name: 'reservationId'})
-    reservation: Reservation
+    reservation: Relation<Reservation>
 }

@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { Reservation } from '../../reservations/entities/reservation.entity';
 import { Appointment } from '../../appointments/entities/appointment.entity';
 import { User } from '../../users/entities/user.entity';
@@ -91,11 +92,11 @@ export class Property {
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'ownerId' })
-  owner: User | null;
+  owner: Relation<User> | null;
 
   @OneToMany(() => Reservation, (reservation) => reservation.property)
-  reservations: Reservation[];
+  reservations: Relation<Reservation>[];
 
   @OneToMany(() => Appointment, (appointment) => appointment.property)
-  appointments: Appointment[];
+  appointments: Relation<Appointment>[];
 }
