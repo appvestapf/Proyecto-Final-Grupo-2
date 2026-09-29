@@ -9,6 +9,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import {
   ApiHideProperty,
   ApiProperty,
@@ -81,13 +82,13 @@ export class User {
   isActive: boolean;
 
   @OneToMany(() => Reservation, (reservation) => reservation.user)
-  reservations: Reservation[];
+  reservations: Relation<Reservation>[];
 
   @OneToMany(() => Appointment, (appointment) => appointment.user)
-  appointments: Appointment[];
+  appointments: Relation<Appointment>[];
 
   @OneToMany(() => Property, (property) => property.owner)
-  properties: Property[];
+  properties: Relation<Property>[];
 
   @ApiPropertyOptional({
     type: () => [Property],
@@ -99,7 +100,7 @@ export class User {
     joinColumn: { name: 'userId', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'propertyId', referencedColumnName: 'id' },
   })
-  favorites: Property[];
+  favorites: Relation<Property>[];
 
   @BeforeInsert()
   @BeforeUpdate()

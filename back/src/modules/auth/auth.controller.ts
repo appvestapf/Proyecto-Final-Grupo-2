@@ -6,7 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { GoogleUser } from './interfaces/google-user.interface';
 
 @ApiTags('Auth')

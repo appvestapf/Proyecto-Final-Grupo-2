@@ -32,7 +32,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional.guard';
 
 @ApiTags('Properties')

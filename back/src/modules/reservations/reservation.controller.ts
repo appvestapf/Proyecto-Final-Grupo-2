@@ -2,7 +2,7 @@ import { Body, Controller, Post, Get, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { ReservationService } from "./reservation.service";
 import { CreateReservationDto } from "./dto/create-reservation.dto";
-import { Request } from "express";
+import type { Request } from "express";
 import { AuthGuard } from "@nestjs/passport";
 
 @ApiTags('Reservations')
