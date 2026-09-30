@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   ParseUUIDPipe,
+  ParseFloatPipe,
+  DefaultValuePipe,
   Delete,
   Query,
   UseInterceptors,
@@ -140,6 +142,28 @@ export class PropertiesController {
   findFavorites(@Req() req: Request) {
     const requester = req.user as { id: string };
     return this.propertiesService.findFavorites(requester.id);
+  }
+
+  @Get('nearby')
+  @ApiOperation({ summary: 'Buscar propiedades cercanas a una ubicación' })
+  @ApiQuery({ name: 'lat', description: 'Latitud del punto de búsqueda' })
+  @ApiQuery({ name: 'lng', description: 'Longitud del punto de búsqueda' })
+  @ApiQuery({
+    name: 'radiusKm',
+    required: false,
+    description: 'Radio de búsqueda en km (por defecto 10)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Propiedades dentro del radio, ordenadas de más cerca a más lejos',
+  })
+  findNearby(
+    @Query('lat', ParseFloatPipe) lat: number,
+    @Query('lng', ParseFloatPipe) lng: number,
+    @Query('radiusKm', new DefaultValuePipe(10), ParseFloatPipe)
+    radiusKm: number,
+  ) {
+    return this.propertiesService.findNearby(lat, lng, radiusKm);
   }
 
   @Get(':id')

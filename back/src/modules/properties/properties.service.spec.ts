@@ -79,6 +79,20 @@ describe('PropertiesService', () => {
     });
   });
 
+  describe('findNearby', () => {
+    it('devuelve solo las propiedades dentro del radio, ordenadas por distancia', async () => {
+      propertiesRepository.find.mockResolvedValue([
+        { id: 'lejos', lat: -34.9, lng: -56.2 }, // Montevideo, ~200km de Bs As
+        { id: 'cerca', lat: -34.61, lng: -58.38 }, // Buenos Aires
+        { id: 'medio', lat: -34.9, lng: -57.95 }, // La Plata, ~60km de Bs As
+      ]);
+
+      const result = await service.findNearby(-34.6037, -58.3816, 100);
+
+      expect(result.map((p: any) => p.id)).toEqual(['cerca', 'medio']);
+    });
+  });
+
   describe('addToFavorites', () => {
     it('rechaza si la propiedad ya está en favoritos', async () => {
       propertiesRepository.findOne.mockResolvedValue({
