@@ -87,6 +87,7 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
+      isSuperAdmin: user.isSuperAdmin,
       isAdmin: user.isAdmin,
       name: user.name,
       pfp: user.pfp,
@@ -174,6 +175,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin,
       name: user.name,
       pfp: user.pfp,
     };
