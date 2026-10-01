@@ -5,17 +5,22 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { Reservation } from './entities/reservation.entity';
 import { Property } from '../properties/entities/property.entity';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
+import { Payment } from '../payments/entities/payment.entity';
+import { ReservationStatus } from './enums/reservation-status.enum';
+import { PaymentStatus } from '../payments/enums/payment-status.enum';
 
 describe('ReservationService', () => {
   let service: ReservationService;
   let reservationsRepository: any;
   let propertiesRepository: any;
+  let paymentsRepository: any;
   let usersService: any;
   let mailService: any;
   let queryBuilder: any;
@@ -24,15 +29,18 @@ describe('ReservationService', () => {
     queryBuilder = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue(null),
+      getOne: jest.fn<() => Promise<any>>().mockResolvedValue(null),
+      //getOne: jest.fn().mockResolvedValue(null),
     };
     reservationsRepository = {
       create: jest.fn((data: any) => data),
       save: jest.fn((data: any) => Promise.resolve({ id: 'res-1', ...data })),
       find: jest.fn(),
+      findOne: jest.fn(),
       createQueryBuilder: jest.fn(() => queryBuilder),
     };
     propertiesRepository = { findOne: jest.fn() };
+    paymentsRepository = { update: jest.fn() };
     usersService = { findOne: jest.fn() };
     mailService = { sendReservationConfirmation: jest.fn() };
 
@@ -47,6 +55,10 @@ describe('ReservationService', () => {
           provide: getRepositoryToken(Property),
           useValue: propertiesRepository,
         },
+        {
+          provide: getRepositoryToken(Payment),
+          useValue: paymentsRepository,
+        },
         { provide: UsersService, useValue: usersService },
         { provide: MailService, useValue: mailService },
       ],
@@ -60,10 +72,7 @@ describe('ReservationService', () => {
       propertiesRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.createReservation(
-          { propertyId: 'no-existe' } as any,
-          'user-1',
-        ),
+        service.createReservation({ propertyId: 'no-existe' } as any, 'user-1'),
       ).rejects.toThrow(NotFoundException);
     });
 
