@@ -47,6 +47,14 @@ export class User {
   @Column({ default: false })
   isAdmin: boolean;
 
+  @ApiProperty({
+    default: false,
+    description:
+      'Rol por encima de admin. Un superAdmin siempre tiene también isAdmin = true',
+  })
+  @Column({ default: false })
+  isSuperAdmin: boolean;
+
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @Column({ nullable: true })
   pfp: string;

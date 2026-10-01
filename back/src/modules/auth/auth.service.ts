@@ -38,8 +38,9 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -52,7 +53,7 @@ export class AuthService {
     };
   }
 
-async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
@@ -86,9 +87,10 @@ async login(loginDto: LoginDto) {
     const payload = {
       sub: user.id,
       email: user.email,
+      isSuperAdmin: user.isSuperAdmin,
       isAdmin: user.isAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -120,7 +122,9 @@ async login(loginDto: LoginDto) {
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const user = await this.usersService.findByResetToken(resetPasswordDto.token);
+    const user = await this.usersService.findByResetToken(
+      resetPasswordDto.token,
+    );
 
     if (
       !user ||
@@ -171,8 +175,9 @@ async login(loginDto: LoginDto) {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);

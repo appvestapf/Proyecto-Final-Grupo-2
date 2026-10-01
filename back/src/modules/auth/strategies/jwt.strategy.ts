@@ -16,8 +16,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       id: payload.sub,
       email: payload.email,
       isAdmin: payload.isAdmin,
+      isSuperAdmin: payload.isSuperAdmin ?? false, //los tokens viejos no lo traen
       name: payload.name,
-      pfp: payload.pfp
+      pfp: payload.pfp,
     };
   }
 }

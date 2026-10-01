@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -30,8 +32,11 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  findAll() {
-    return this.usersRepository.find({ where: { isActive: true } });
+  findAll(includeInactive = false) {
+    return this.usersRepository.find({
+      where: includeInactive ? {} : { isActive: true },
+      order: { name: 'ASC' },
+    });
   }
 
   async findOne(id: string) {
@@ -94,20 +99,108 @@ export class UsersService {
 
   async remove(id: string) {
     const user = await this.findOne(id);
+    if (user.isSuperAdmin) {
+      throw new ForbiddenException(
+        'Un superAdmin no se puede dar de baja. Primero otro superAdmin tiene que quitarle el rol',
+      );
+    }
     user.isActive = false;
     return this.usersRepository.save(user);
   }
 
-  async findProfileById(id:string){
-    const user = await this.usersRepository.findOne({where: {id}})
-    if(!user) throw new NotFoundException('Usuario no encontrado')
+  async assertCanManage(requesterId: string, targetId: string) {
+    if (requesterId === targetId) return;
+
+    const [requester, target] = await Promise.all([
+      this.findOne(requesterId),
+      this.findOne(targetId),
+    ]);
+
+    if (target.isSuperAdmin) {
+      throw new ForbiddenException('No podés modificar a un superAdmin');
+    }
+    if (target.isAdmin && !requester.isSuperAdmin) {
+      throw new ForbiddenException(
+        'Solo un superAdmin puede modificar a otro admin',
+      );
+    }
+  }
+
+  private async assertRequesterIsSuperAdmin(requesterId: string) {
+    const requester = await this.findOne(requesterId);
+    if (!requester.isActive || !requester.isSuperAdmin) {
+      throw new ForbiddenException(
+        'Solo un superAdmin puede realizar esta acción',
+      );
+    }
+  }
+
+  async updateRole(id: string, isAdmin: boolean, requesterId: string) {
+    if (id === requesterId) {
+      throw new BadRequestException('No podés cambiar tu propio rol');
+    }
+    await this.assertRequesterIsSuperAdmin(requesterId);
+
+    const user = await this.findOne(id);
+    if (!isAdmin && user.isSuperAdmin) {
+      throw new ConflictException(
+        'Es superAdmin: primero quitale el rol de superAdmin',
+      );
+    }
+    if (user.isAdmin === isAdmin) {
+      throw new ConflictException(
+        isAdmin ? 'El usuario ya es admin' : 'El usuario no es admin',
+      );
+    }
+
+    await this.usersRepository.update(id, { isAdmin });
+    return this.findProfileById(id);
+  }
+
+  async updateSuperAdmin(
+    id: string,
+    isSuperAdmin: boolean,
+    requesterId: string,
+  ) {
+    if (id === requesterId) {
+      throw new BadRequestException('No podés cambiar tu propio rol');
+    }
+    await this.assertRequesterIsSuperAdmin(requesterId);
+
+    const user = await this.findOne(id);
+    if (user.isSuperAdmin === isSuperAdmin) {
+      throw new ConflictException(
+        isSuperAdmin
+          ? 'El usuario ya es superAdmin'
+          : 'El usuario no es superAdmin',
+      );
+    }
+    if (isSuperAdmin && !user.isActive) {
+      throw new ConflictException(
+        'No podés dar el rol a un usuario dado de baja',
+      );
+    }
+
+    await this.usersRepository.update(
+      id,
+      isSuperAdmin
+        ? { isSuperAdmin: true, isAdmin: true }
+        : { isSuperAdmin: false },
+    );
+    return this.findProfileById(id);
+  }
+
+  async findProfileById(id: string) {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
     return {
-      id:user.id,
-      name:user.name,
-      email:user.email,
+      id: user.id,
+      name: user.name,
+      email: user.email,
       address: user.address,
       isAdmin: user.isAdmin,
-      pfp: user.pfp
-    }
+      isSuperAdmin: user.isSuperAdmin,
+      pfp: user.pfp,
+    };
   }
 }
