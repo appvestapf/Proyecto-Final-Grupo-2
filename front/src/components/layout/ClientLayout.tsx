@@ -3,11 +3,11 @@
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/navbar/navbar";
 import Footer from "@/components/footer/footer";
+import { ChatbotWidget } from "@/components/chat/ChatbotWidget"; // <--- Importas el widget
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Verificamos si estamos en rutas de autenticación o admin
   const isAuthOrAdmin = pathname.startsWith('/auth') || pathname.startsWith('/admin');
 
   return (
@@ -17,6 +17,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
       {!isAuthOrAdmin && <Footer />}
+      {/* <--- Renderizas el widget solo si no es ruta de admin/auth */}
+      {!isAuthOrAdmin && <ChatbotWidget />} 
     </>
   );
 }
