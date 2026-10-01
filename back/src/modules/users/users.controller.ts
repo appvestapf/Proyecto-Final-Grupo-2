@@ -14,6 +14,7 @@ import {
   UseInterceptors,
   UseGuards,
   Req,
+  Query,
   ForbiddenException,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
   ApiParam,
   ApiResponse,
   ApiTags,
@@ -31,7 +33,14 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import type { Request } from 'express';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
+import {
+  UpdateUserRoleDto,
+  UpdateUserSuperAdminDto,
+} from './dto/update-user-role.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -40,21 +49,20 @@ export class UsersController {
 
   @Get('profile')
   @ApiBearerAuth()
-  @ApiOperation({summary:'Obtener el perfil del usuario autenticado'})
+  @ApiOperation({ summary: 'Obtener el perfil del usuario autenticado' })
   @ApiResponse({
     status: 200,
-    description: 'Perfil obtenido correctamente'
+    description: 'Perfil obtenido correctamente',
   })
   @ApiResponse({
-    status:401,
-    description:'Token invalido o no proporcionado'
+    status: 401,
+    description: 'Token invalido o no proporcionado',
   })
   @UseGuards(AuthGuard('jwt'))
-  async getProfile(@Req() req: Request){
-    const user = req.user as {id: string}
-    return this.usersService.findProfileById(user.id)
+  async getProfile(@Req() req: Request) {
+    const user = req.user as { id: string };
+    return this.usersService.findProfileById(user.id);
   }
-
 
   @Post('upload-photo')
   @UseInterceptors(FileInterceptor('photo'))
@@ -80,7 +88,8 @@ export class UsersController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-          new FileTypeValidator({ fileType: 'image' }),        ],
+          new FileTypeValidator({ fileType: 'image' }),
+        ],
       }),
     )
     photo: Express.Multer.File,
@@ -99,21 +108,21 @@ export class UsersController {
 
   @Get()
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Listar todos los usuarios' })
+  @ApiQuery({
+    name: 'includeInactive',
+    required: false,
+    description: 'true = incluye a los dados de baja',
+  })
   @ApiResponse({ status: 200, description: 'Lista de usuarios', type: [User] })
   @ApiResponse({
     status: 403,
     description: 'Solo un admin puede listar todos los usuarios',
   })
-  findAll(@Req() req: Request) {
-    const requester = req.user as { isAdmin: boolean };
-    if (!requester.isAdmin) {
-      throw new ForbiddenException(
-        'Solo un admin puede listar todos los usuarios',
-      );
-    }
-    return this.usersService.findAll();
+  findAll(@Query('includeInactive') includeInactive?: string) {
+    return this.usersService.findAll(includeInactive === 'true');
   }
 
   @Get(':id')
@@ -141,6 +150,57 @@ export class UsersController {
     return this.usersService.findOnePublic(id);
   }
 
+  @Patch(':id/role')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Dar o quitar el rol de admin (solo superAdmin)' })
+  @ApiParam({ name: 'id', description: 'UUID del usuario' })
+  @ApiResponse({ status: 400, description: 'No podés cambiar tu propio rol' })
+  @ApiResponse({ status: 403, description: 'Solo un superAdmin puede hacerlo' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiResponse({
+    status: 409,
+    description: 'El usuario ya tenía ese rol, o es superAdmin',
+  })
+  updateRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserRoleDto,
+    @Req() req: Request,
+  ) {
+    const requester = req.user as { id: string };
+    return this.usersService.updateRole(id, dto.isAdmin, requester.id);
+  }
+
+  @Patch(':id/super-admin')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  @ApiOperation({
+    summary:
+      'Dar o quitar el rol de superAdmin (solo superAdmin). Al darlo también queda como admin',
+  })
+  @ApiParam({ name: 'id', description: 'UUID del usuario' })
+  @ApiResponse({ status: 400, description: 'No podés cambiar tu propio rol' })
+  @ApiResponse({ status: 403, description: 'Solo un superAdmin puede hacerlo' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiResponse({
+    status: 409,
+    description: 'El usuario ya tenía ese rol o está dado de baja',
+  })
+  updateSuperAdmin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserSuperAdminDto,
+    @Req() req: Request,
+  ) {
+    const requester = req.user as { id: string };
+    return this.usersService.updateSuperAdmin(
+      id,
+      dto.isSuperAdmin,
+      requester.id,
+    );
+  }
+
   @Patch(':id')
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -153,7 +213,7 @@ export class UsersController {
     description: 'No podés modificar el perfil de otro usuario',
   })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
     @Req() req: Request,
@@ -164,6 +224,7 @@ export class UsersController {
         'No podés modificar el perfil de otro usuario',
       );
     }
+    await this.usersService.assertCanManage(requester.id, id);
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -175,14 +236,14 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Usuario eliminado' })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
-  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+  async remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string; isAdmin: boolean };
     if (requester.id !== id && !requester.isAdmin) {
       throw new ForbiddenException(
         'No podés eliminar el perfil de otro usuario',
       );
     }
+    await this.usersService.assertCanManage(requester.id, id);
     return this.usersService.remove(id);
   }
-
 }

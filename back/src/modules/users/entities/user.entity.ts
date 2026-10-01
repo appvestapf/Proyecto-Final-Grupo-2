@@ -9,6 +9,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import {
   ApiHideProperty,
   ApiProperty,
@@ -46,12 +47,40 @@ export class User {
   @Column({ default: false })
   isAdmin: boolean;
 
+  @ApiProperty({
+    default: false,
+    description:
+      'Rol por encima de admin. Un superAdmin siempre tiene también isAdmin = true',
+  })
+  @Column({ default: false })
+  isSuperAdmin: boolean;
+
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @Column({ nullable: true })
   pfp: string;
 
   @Column({ type: 'varchar', nullable: true, unique: true })
   googleId: string | null;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  resetPasswordToken: string | null;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  resetPasswordExpires: Date | null;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ default: 0 })
+  failedLoginAttempts: number;
+
+  @ApiHideProperty()
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
 
   @ApiProperty({
     default: true,
@@ -61,13 +90,13 @@ export class User {
   isActive: boolean;
 
   @OneToMany(() => Reservation, (reservation) => reservation.user)
-  reservations: Reservation[];
+  reservations: Relation<Reservation>[];
 
   @OneToMany(() => Appointment, (appointment) => appointment.user)
-  appointments: Appointment[];
+  appointments: Relation<Appointment>[];
 
   @OneToMany(() => Property, (property) => property.owner)
-  properties: Property[];
+  properties: Relation<Property>[];
 
   @ApiPropertyOptional({
     type: () => [Property],
@@ -79,7 +108,7 @@ export class User {
     joinColumn: { name: 'userId', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'propertyId', referencedColumnName: 'id' },
   })
-  favorites: Property[];
+  favorites: Relation<Property>[];
 
   @BeforeInsert()
   @BeforeUpdate()

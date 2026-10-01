@@ -1,4 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import type { Relation } from "typeorm";
 import { User } from "../../users/entities/user.entity";
 import { Property } from "../../properties/entities/property.entity";
 import { ReservationStatus } from "../enums/reservation-status.enum";
@@ -45,13 +46,13 @@ export class Reservation{
 
     @ManyToOne(()=> User, (user)=> user.reservations)
     @JoinColumn({name: 'userId'})
-    user: User;
+    user: Relation<User>;
 
     @ManyToOne(()=> Property, (property)=> property.reservations)
     @JoinColumn({name: 'propertyId'})
-    property: Property;
+    property: Relation<Property>;
 
     @OneToMany(()=>Payment,(payment)=>payment.reservation)
-    payments: Payment[]
+    payments: Relation<Payment>[]
 
 }

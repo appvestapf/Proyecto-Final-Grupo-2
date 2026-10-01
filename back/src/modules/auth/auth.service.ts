@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,7 +9,10 @@ import { MailService } from '../mail/mail.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { GoogleUser } from './interfaces/google-user.interface';
 
 @Injectable()
@@ -34,8 +38,9 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -48,7 +53,7 @@ export class AuthService {
     };
   }
 
-async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
@@ -58,20 +63,34 @@ async login(loginDto: LoginDto) {
         'Este usuario no tiene contraseña, inicia sesión con Google',
       );
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil(
+        (user.lockedUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new ForbiddenException(
+        `Cuenta bloqueada temporalmente por demasiados intentos fallidos. Probá de nuevo en ${minutesLeft} minuto(s)`,
+      );
+    }
+
     const passwordValid = await bcrypt.compare(
       loginDto.password,
       user.password,
     );
 
-    if (!passwordValid)
+    if (!passwordValid) {
+      await this.usersService.registerFailedLogin(user);
       throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    await this.usersService.resetFailedLogins(user);
 
     const payload = {
       sub: user.id,
       email: user.email,
+      isSuperAdmin: user.isSuperAdmin,
       isAdmin: user.isAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -84,6 +103,42 @@ async login(loginDto: LoginDto) {
       user: userWithoutPassword,
       access_token: accessToken,
     };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const user = await this.usersService.findByEmail(forgotPasswordDto.email);
+
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
+      await this.usersService.setResetPasswordToken(user.email, token, expires);
+      await this.mailService.sendPasswordReset(user.email, user.name, token);
+    }
+
+    return {
+      message:
+        'Si el email está registrado, vas a recibir instrucciones para restablecer tu contraseña',
+    };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const user = await this.usersService.findByResetToken(
+      resetPasswordDto.token,
+    );
+
+    if (
+      !user ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires < new Date()
+    ) {
+      throw new UnauthorizedException(
+        'El link para restablecer la contraseña es inválido o expiró',
+      );
+    }
+
+    await this.usersService.resetPassword(user, resetPasswordDto.password);
+
+    return { message: 'Contraseña actualizada correctamente' };
   }
 
   async logout() {
@@ -120,8 +175,9 @@ async login(loginDto: LoginDto) {
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin,
       name: user.name,
-      pfp: user.pfp
+      pfp: user.pfp,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);

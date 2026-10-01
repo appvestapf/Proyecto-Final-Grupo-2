@@ -17,6 +17,8 @@ export class GoogleStrategy extends PassportStrategy(
             scope: ['email', 'profile'],
             passReqToCallback: false,
         })
+        console.log('GOOGLE CLIENT ID:', process.env.GOOGLE_CLIENT_ID);
+        console.log('GOOGLE CALLBACK URL:', process.env.GOOGLE_CALLBACK_URL);
     }
     async validate(
         accessToken: string,
