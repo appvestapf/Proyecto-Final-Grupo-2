@@ -104,7 +104,7 @@ function LoginForm() {
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="block text-[13px] font-medium text-main">Contraseña</label>
-            <Link href="#" className="text-xs text-primary hover:underline font-medium">
+            <Link href="/auth/forgot-password" className="text-xs text-primary hover:underline font-medium">
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
