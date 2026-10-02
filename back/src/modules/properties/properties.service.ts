@@ -56,7 +56,7 @@ export class PropertiesService {
   }
 
   async searchProperties(filters: PropertySearchDto){
-    const{keyword,startDate,endDate,capacity}=filters;
+    const{keyword,startDate,endDate,capacity,lat,lng,radius}=filters;
     const query = this.propertiesRepository.createQueryBuilder('property').
     where('property.isDeleted = :isDeleted',{isDeleted: false}).
     andWhere('property.isAvailable = :isAvailable',{isAvailable: true})
@@ -94,7 +94,19 @@ export class PropertiesService {
       )
     }
     query.orderBy('property.rating','DESC')
-    return query.getMany();
+    const properties = await query.getMany();
+
+    if(lat!==undefined && lng!==undefined && radius!==undefined){
+      return properties
+        .map((property)=>({
+          ...property,
+          distanceKm: this.calculateDistanceKm(lat,lng,property.lat,property.lng),
+        }))
+        .filter((property)=>property.distanceKm<=radius)
+        .sort((a,b)=>a.distanceKm-b.distanceKm)
+    }
+
+    return properties;
   }
 
   async findAllAdmin(country?: string, city?: string, page?: string) {
