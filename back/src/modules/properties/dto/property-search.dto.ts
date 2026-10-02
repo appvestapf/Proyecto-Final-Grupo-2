@@ -18,4 +18,19 @@ export class PropertySearchDto {
     @Type(()=>Number)
     @IsNumber()
     capacity?:number;
+
+    @IsOptional()
+    @Type(()=>Number)
+    @IsNumber()
+    lat?:number;
+
+    @IsOptional()
+    @Type(()=>Number)
+    @IsNumber()
+    lng?:number;
+
+    @IsOptional()
+    @Type(()=>Number)
+    @IsNumber()
+    radius?:number;
 }
