@@ -36,6 +36,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional.guard';
+import { PropertySearchDto } from './dto/property-search.dto';
 
 @ApiTags('Properties')
 @Controller('properties')
@@ -96,6 +97,52 @@ export class PropertiesController {
     const urls = await this.cloudinaryService.uploadImages(images);
     return { urls };
   }
+
+@Get('search')
+@ApiOperation({
+  summary: 'Buscar propiedades disponibles',
+  description:
+    'Permite buscar utilizando destino,periodo de fechas y cantidad de huespedes',
+})
+@ApiQuery({
+  name:'keyword',
+  required: false,
+  type:String,
+  example:'Cordoba',
+  description: 'Destino de busqueda'
+})
+@ApiQuery({
+  name: 'startDate',
+  required: false,
+  type:String,
+  example: '2026-10-10',
+  description:'Fecha de inicio de la estadia'
+})
+@ApiQuery({
+  name: 'endDate',
+  required: false,
+  type:String,
+  example: '2026-10-15',
+  description:'Fecha de finalizacion de la estadia'
+})
+@ApiQuery({
+  name:'capacity',
+  required:false,
+  type:Number,
+  example: 4,
+  description:'Cantidad de huéspedes solicitada'
+})
+@ApiResponse({
+  status:200,
+  description:'Propiedades que cumplen los filtros y estan disponibles'
+})
+@ApiResponse({
+  status:400,
+  description:'Las fechas son invalidas o falta una de las fechas del periodo'
+})
+searchProperties(@Query()searchDto: PropertySearchDto){
+  return this.propertiesService.searchProperties(searchDto)
+}
 
   @Get()
   @ApiBearerAuth()

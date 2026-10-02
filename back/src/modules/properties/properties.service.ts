@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -11,6 +12,8 @@ import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
 import { User } from '../users/entities/user.entity';
 import { PropertySearchFilters } from './dto/propertySearchFilters.dto';
+import { ReservationStatus } from '../reservations/enums/reservation-status.enum';
+import { PropertySearchDto } from './dto/property-search.dto';
 
 @Injectable()
 export class PropertiesService {
@@ -50,6 +53,48 @@ export class PropertiesService {
     });
 
     return properties;
+  }
+
+  async searchProperties(filters: PropertySearchDto){
+    const{keyword,startDate,endDate,capacity}=filters;
+    const query = this.propertiesRepository.createQueryBuilder('property').
+    where('property.isDeleted = :isDeleted',{isDeleted: false}).
+    andWhere('property.isAvailable = :isAvailable',{isAvailable: true})
+    if(keyword){
+      query.andWhere(`(LOWER(unaccent(property.city))LIKE LOWER (unaccent(:keyword))
+        OR LOWER(unaccent(property.country))LIKE LOWER(unaccent(:keyword)))`,{
+          keyword: `%${keyword}%`
+        })
+    }
+    if(capacity!==undefined){
+      query.andWhere('property.capacity>=:capacity',{capacity})
+    }
+    if((startDate&&!endDate)||(!startDate&&endDate)){
+      throw new BadRequestException('Para buscar por disponibilidad debes indicar fecha de inicio y fecha de finalización')
+    }
+    if(startDate&&endDate){
+      if(startDate>=endDate){
+        throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha de finalización')
+      }
+      query.andWhere(
+        `NOT EXISTS(
+          SELECT 1 FROM reservations reservation
+          WHERE reservation."propertyId" = property.id
+          AND reservation.status IN (:...reservationStatuses)
+          AND reservation."startDate" <= :endDate
+          AND reservation."endDate">=:startDate
+        )`,
+        {reservationStatuses:[
+          ReservationStatus.PENDING,
+          ReservationStatus.CONFIRMED
+        ],
+        startDate,
+        endDate
+      }
+      )
+    }
+    query.orderBy('property.rating','DESC')
+    return query.getMany();
   }
 
   async findAllAdmin(country?: string, city?: string, page?: string) {

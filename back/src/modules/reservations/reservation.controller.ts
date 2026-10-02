@@ -32,7 +32,41 @@ import { Role } from '../auth/enums/role.enum';
 @ApiTags('Reservations')
 @Controller('reservations')
 export class ReservationController {
-  constructor(private readonly reservationService: ReservationService) {}
+  constructor(private readonly reservationService: ReservationService) { }
+
+  @Get('property/:propertyId/blocked-dates')
+  @ApiOperation({
+    summary: 'Obtener fechas bloqueadas de una propiedad',
+    description: 'Devuelve los rangos de fechas correspondientes a reservas pendientes o confirmadas de una propiedad. Las reservas canceladas no se consideran fechas bloqueadas.'
+  }) 
+  @ApiParam({ 
+    name: 'propertyId', 
+    type: String, 
+    format: 'uuid',
+    description: 'UUID de la propiedad', 
+    example: 'UUID' 
+  }) 
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Rangos de fechas bloqueados obtenidos correctamente.', 
+    schema: { 
+      example: [{ 
+        startDate: '2026-10-10', 
+        endDate: '2026-10-15', 
+      }, 
+      { startDate: '2026-10-20', 
+          endDate: '2026-10-25', 
+      },
+      ], 
+    }, 
+  }) 
+  @ApiResponse({ 
+    status: 404, 
+    description: 'La propiedad no existe.', 
+  })
+  getBlockedDates(@Param('propertyId', ParseUUIDPipe) propertyId: string) {
+    return this.reservationService.getBlockedDates(propertyId)
+  }
 
   @Post()
   @ApiBearerAuth()
