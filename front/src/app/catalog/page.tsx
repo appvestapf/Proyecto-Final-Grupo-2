@@ -1,139 +1,207 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react';
-import { SearchBar } from '@/components/property/SearchBar/SearchBar';
+
+import React, { useState, useEffect, Suspense } from 'react';
+import dynamic from 'next/dynamic';
+import { SearchFilterBar } from '@/components/property/SearchFilterBar/SearchFilterBar';
 import { CardInmueble } from '@/components/property/CardInmueble/CardInmueble';
 import { Pagination } from '@/components/common/Pagination/Pagination';
-import { Property } from '@/interfaces/property';
-import { propertyService } from '@/services/propertyService';
-import { useSearchParams } from 'next/navigation';
+import { Property, PropertyLocation } from '@/interfaces/property';
+import { propertyService, PropertySearchParams } from '@/services/propertyService';
+import { useSearchParams, useRouter } from 'next/navigation';
+
+// Carga dinámica de PropertyMap con tipado explícito para evitar fallos de overloaded props
+const PropertyMap = dynamic<any>(
+  () => import('@/components/property/PropertyMap/PropertyMap').then((mod) => mod.PropertyMap),
+  { ssr: false }
+);
 
 function CatalogContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
+  // Carga de propiedades desde el backend usando /properties/search
   useEffect(() => {
-    const fetchData = async () => {
+    const loadProperties = async () => {
       setLoading(true);
       try {
-        const data = await propertyService.getProperties();
+        const keyword = searchParams.get('keyword') || searchParams.get('location') || undefined;
+        const startDate = searchParams.get('startDate') || undefined;
+        const endDate = searchParams.get('endDate') || undefined;
+        const capacityParam = searchParams.get('capacity');
+        const capacity = capacityParam ? parseInt(capacityParam, 10) : undefined;
+        const latParam = searchParams.get('lat');
+        const lngParam = searchParams.get('lng');
+        const radiusParam = searchParams.get('radius');
+
+        const searchPayload: PropertySearchParams = {
+          keyword,
+          startDate,
+          endDate,
+          capacity: capacity && !isNaN(capacity) ? capacity : undefined,
+          ...(latParam && lngParam ? {
+            lat: parseFloat(latParam),
+            lng: parseFloat(lngParam),
+            radius: radiusParam ? parseFloat(radiusParam) : 10
+          } : {})
+        };
+
+        const data = await propertyService.searchProperties(searchPayload);
         setProperties(data);
-
-        const urlLocation = searchParams.get('location');
-        const urlCapacity = searchParams.get('capacity');
-        const urlRentalType = searchParams.get('rentalType');
-
-        let result = data;
-
-        if (urlLocation) {
-          result = result.filter(p => 
-            p.location.toLowerCase().includes(urlLocation.toLowerCase()) ||
-            p.title.toLowerCase().includes(urlLocation.toLowerCase())
-          );
-        }
-
-        if (urlCapacity) {
-          const cap = parseInt(urlCapacity, 10);
-          result = result.filter(p => p.capacity >= cap);
-        }
-
-        if (urlRentalType) {
-          result = result.filter(p => 
-            p.rentalType?.toLowerCase() === urlRentalType.toLowerCase()
-          );
-        }
-
-        setFilteredProperties(result);
-        setCurrentPage(1);
       } catch (error) {
-        console.error("Error al cargar propiedades:", error);
+        console.error("Error al cargar propiedades con filtros:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    loadProperties();
   }, [searchParams]);
 
-  const handleSearch = (filters: { location: string; rentalType: string; maxPrice: string; capacity: string }) => {
-    let result = properties;
+  // Filtros de cliente (RentalType, MaxPrice, PetFriendly)
+  useEffect(() => {
+    const rentalType = searchParams.get('rentalType');
+    const maxPrice = searchParams.get('maxPrice');
+    const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
 
-    if (filters.location) {
+    let result = [...properties];
+
+    if (rentalType) {
       result = result.filter(p => 
-        p.location.toLowerCase().includes(filters.location.toLowerCase()) ||
-        p.title.toLowerCase().includes(filters.location.toLowerCase())
+        p.rentalType?.toLowerCase() === rentalType.toLowerCase()
       );
     }
 
-    if (filters.rentalType) {
-      result = result.filter(p => p.rentalType === filters.rentalType);
+    if (maxPrice) {
+      const price = parseFloat(maxPrice);
+      if (!isNaN(price)) {
+        result = result.filter(p => p.price <= price);
+      }
     }
 
-    if (filters.capacity) {
-      const cap = parseInt(filters.capacity, 10);
-      result = result.filter(p => p.capacity >= cap);
-    }
-
-    if (filters.maxPrice) {
-      const max = parseFloat(filters.maxPrice);
-      result = result.filter(p => p.price <= max);
+    if (isPetFriendlyParam === 'true') {
+      result = result.filter(p => (p as any).isPetFriendly === true || (p as any).petsAllowed === true);
     }
 
     setFilteredProperties(result);
-    setCurrentPage(1); 
+    setCurrentPage(1);
+  }, [searchParams, properties]);
+
+  const handleResetFilters = () => {
+    router.push('/catalog');
+  };
+
+  // Callback al hacer click en "Rebuscar en esta área" manteniendo los filtros previos
+  const handleAreaSearch = (lat: number, lng: number, radius: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set('lat', lat.toFixed(6));
+    params.set('lng', lng.toFixed(6));
+    params.set('radius', Math.round(radius).toString());
+
+    router.push(`/catalog?${params.toString()}`);
   };
 
   const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredProperties.slice(startIndex, startIndex + itemsPerPage);
 
+  // Convierte las propiedades filtradas que tengan coordenadas válidas al formato que requiere el mapa
+  const mapLocations: PropertyLocation[] = filteredProperties
+    .filter((p): p is Property & { lat: number; lng: number } => 
+      typeof p.lat === 'number' && typeof p.lng === 'number'
+    )
+    .map((p) => ({
+      id: p.id,
+      title: p.title || p.name || 'Inmueble',
+      price: p.price,
+      lat: p.lat!,
+      lng: p.lng!,
+      image: p.images && p.images.length > 0 ? p.images[0] : undefined,
+      address: p.location,
+      city: p.location,
+    }));
+
   return (
-    <div className="max-w-[1100px] mx-auto">
-      <h1 className="text-3xl font-bold text-main mb-8 text-center tracking-tight">
+    <div className="max-w-[1400px] mx-auto px-2 lg:px-6">
+      <h1 className="text-3xl font-bold text-main mb-6 text-center tracking-tight">
         Catálogo de Inmuebles
       </h1>
       
-      <SearchBar onSearch={handleSearch} />
+      <SearchFilterBar variant="catalog" />
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center py-6">
-          {[...Array(6)].map((_, i) => (
-            <div 
-              key={i} 
-              className="w-full max-w-sm h-80 bg-surface border border-subtle rounded-2xl animate-pulse"
-            />
-          ))}
-        </div>
-      ) : currentItems.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
-          {currentItems.map((property) => (
-            <CardInmueble key={property.id} data={property} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16 px-4 bg-surface border border-subtle rounded-2xl my-6">
-          <p className="text-main font-medium text-lg mb-1">
-            No se encontraron inmuebles
-          </p>
-          <p className="text-muted text-sm">
-            Intenta ajustando o borrando algunos de los filtros seleccionados.
-          </p>
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-6">
+        
+        {/* Lista de Tarjetas */}
+        <div className="lg:col-span-7 space-y-6">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center py-2">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className="w-full max-w-sm h-80 bg-surface border border-subtle rounded-2xl animate-pulse"
+                />
+              ))}
+            </div>
+          ) : currentItems.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center">
+              {currentItems.map((property) => (
+                <div
+                  key={property.id}
+                  className="w-full flex justify-center"
+                  onMouseEnter={() => setHoveredPropertyId(property.id)}
+                  onMouseLeave={() => setHoveredPropertyId(null)}
+                >
+                  <CardInmueble data={property} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 px-4 bg-surface border border-subtle rounded-2xl my-6 flex flex-col items-center">
+              <p className="text-main font-medium text-lg mb-1">
+                No se encontraron inmuebles
+              </p>
+              <p className="text-muted text-sm mb-4">
+                Intenta ajustando o borrando algunos de los filtros seleccionados.
+              </p>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
 
-      {!loading && totalPages > 1 && (
-        <div className="mt-8 flex justify-center">
-          <Pagination 
-            currentPage={currentPage} 
-            totalPages={totalPages}
-            onPrev={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            onNext={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          {!loading && totalPages > 1 && (
+            <div className="mt-8 flex justify-center">
+              <Pagination 
+                currentPage={currentPage} 
+                totalPages={totalPages}
+                onPrev={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onNext={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Mapa Interactivo */}
+        <div className="hidden lg:block lg:col-span-5 sticky top-6 h-[calc(100vh-140px)] min-h-[500px]">
+          <PropertyMap 
+            properties={mapLocations} 
+            hoveredPropertyId={hoveredPropertyId}
+            onAreaSearch={handleAreaSearch}
           />
         </div>
-      )}
+
+      </div>
     </div>
   );
 }
