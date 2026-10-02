@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Reservation } from './entities/reservation.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Property } from '../properties/entities/property.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { ReservationStatus } from './enums/reservation-status.enum';
@@ -313,4 +313,27 @@ export class ReservationService {
       recentActivity,
     };
   }
+  async getBlockedDates(propertyId:string) {
+    const reservations = await this.reservationsRepository.find({
+      where: {
+        propertyId,
+        status: In([
+          ReservationStatus.PENDING,
+          ReservationStatus.CONFIRMED,
+        ])
+      },
+      select: {
+        startDate:true,
+        endDate: true,
+      },
+      order: {
+        startDate: 'ASC'
+      }
+    })
+    return reservations.map((reservation)=>({
+      startDate: reservation.startDate,
+      endDate: reservation.endDate
+    }))
+  }
 }
+
