@@ -18,9 +18,15 @@ export class UsersService {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async uploadPhoto(file: Express.Multer.File): Promise<string> {
+  async updatePhoto(userId: string, file: Express.Multer.File) {
+    const user = await this.findOnePublic(userId);
     const result = await this.cloudinaryService.uploadImage(file, 'users');
-    return result.secure_url;
+    // update() solo toca la columna pfp, sin pasar por los hooks de la entidad
+    await this.usersRepository.update(user.id, { pfp: result.secure_url });
+    return {
+      url: result.secure_url,
+      user: await this.findProfileById(user.id),
+    };
   }
 
   async create(createUserDto: CreateUserDto) {

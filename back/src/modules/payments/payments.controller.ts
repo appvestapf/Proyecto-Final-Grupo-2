@@ -6,16 +6,25 @@ import {
   Req,
   UseGuards,
   ParseEnumPipe,
+  ParseUUIDPipe,
   Query,
 } from '@nestjs/common';
 import { PaymentService } from './payments.service';
+import {
+  PAYMENT_EXAMPLE,
+  PROPERTY_EXAMPLE,
+  RESERVATION_EXAMPLE,
+  USER_EXAMPLE,
+} from '../../common/swagger/examples';
 import { RequestWithUser } from '../auth/interfaces/request-whit-user.interface';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiQuery,
+  ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { PaymentStatus } from './enums/payment-status.enum';
@@ -23,6 +32,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 
+@ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentService) {}
@@ -36,6 +46,14 @@ export class PaymentsController {
       'Listar todos los pagos con su reserva, usuario y propiedad (admin)',
   })
   @ApiQuery({ name: 'status', required: false, enum: PaymentStatus })
+  @ApiResponse({
+    status: 200,
+    description: 'Listado de pagos',
+    schema: { example: [{ ...PAYMENT_EXAMPLE, reservation: { ...RESERVATION_EXAMPLE, status: 'confirmed', user: USER_EXAMPLE, property: PROPERTY_EXAMPLE } }] },
+  })
+  @ApiResponse({ status: 400, description: 'El status no es válido' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({ status: 403, description: 'Solo un admin puede listar los pagos' })
   findAll(
     @Query('status', new ParseEnumPipe(PaymentStatus, { optional: true }))
     status?: PaymentStatus,
@@ -51,31 +69,14 @@ export class PaymentsController {
   })
   @ApiResponse({
     status: 201,
-    description: 'Notificacion recibida y procesada correctamente',
-    schema: {
-      example: {
-        received: true,
-        processed: true,
-        paymentId: 'UUID',
-        mercadoPagoPaymentId: '123456789',
-        reservationId: 'UUID',
-        status: 'approved',
-        reservationStatus: 'confirmed',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'La notificación recibida no tiene un formato válido',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'No se encontró el pago o la reserva asociada',
-  })
-  @ApiResponse({
-    status: 409,
     description:
-      'La orden no contiene la información necesaria o el pago no puede ser procesado',
+      'Siempre responde 201 al instante. Si el body trae data.id, el pago se procesa en segundo plano y los errores solo quedan en los logs. Si no lo trae, devuelve processed: false',
+    schema: {
+      oneOf: [
+        { example: { received: true } },
+        { example: { received: true, processed: false } },
+      ],
+    },
   })
   webhook(@Req() req: Request) {
     console.log('🚨 WEBHOOK RECIBIDO 🚨');
@@ -114,8 +115,10 @@ export class PaymentsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
     summary: 'Consultar el estado del pago de una reserva',
-    description: 'Devuelve el estado actual del pago y de la reserva asociada',
+    description:
+      'Devuelve el estado actual del pago y de la reserva asociada. Solo para el dueño de la reserva: para cualquier otro usuario, admins incluidos, responde 404',
   })
+  @ApiParam({ name: 'reservationId', description: 'UUID de la reserva' })
   @ApiResponse({
     status: 200,
     description: 'Estado del pago obtenido correctamente',
@@ -135,12 +138,14 @@ export class PaymentsController {
     status: 401,
     description: 'Usuario no autenticado',
   })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({
     status: 404,
-    description: 'No se encontró la reserva o el pago asociado',
+    description:
+      'La reserva no existe, no es del usuario, o todavía no tiene un pago',
   })
   getPaymentsStatus(
-    @Param('reservationId') reservationId: string,
+    @Param('reservationId', ParseUUIDPipe) reservationId: string,
     @Req() req: Request,
   ) {
     const user = req.user as { id: string };
@@ -153,8 +158,9 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Crear un pago para una reserva',
     description:
-      'Crea una orden de pago en Mercado Pago para la reserva indicada y devuelve la URL de checkout',
+      'Crea una orden de pago en Mercado Pago para la reserva indicada y devuelve la URL de checkout. Solo el dueño de la reserva, y la reserva tiene que estar pendiente',
   })
+  @ApiParam({ name: 'reservationId', description: 'UUID de la reserva' })
   @ApiResponse({
     status: 201,
     description: 'Pago creado correctamente',
@@ -168,6 +174,7 @@ export class PaymentsController {
       },
     },
   })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({
     status: 401,
     description: 'Usuario no autenticado o token JWT inválido',
@@ -178,15 +185,15 @@ export class PaymentsController {
   })
   @ApiResponse({
     status: 404,
-    description: 'La reseva, propiedad o usuario asociado no existe',
+    description: 'La reserva, propiedad o usuario asociado no existe',
   })
   @ApiResponse({
     status: 409,
     description:
-      'La reserva no está pendiende de pago o Mercado Pago no devolvió una orden valida',
+      'La reserva no está pendiente de pago o Mercado Pago no devolvió una orden válida',
   })
   createPayment(
-    @Param('reservationId') reservationId: string,
+    @Param('reservationId', ParseUUIDPipe) reservationId: string,
     @Req() req: RequestWithUser,
   ) {
     return this.paymentsService.createPayment(reservationId, req.user.id);
