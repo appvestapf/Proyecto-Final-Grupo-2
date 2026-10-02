@@ -19,6 +19,12 @@ import {
   Req,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
+import {
+  MESSAGE_EXAMPLE,
+  PROPERTY_EXAMPLE,
+  PROPERTY_WITH_OWNER_EXAMPLE,
+  USER_EXAMPLE,
+} from '../../common/swagger/examples';
 import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
 import {
@@ -53,7 +59,13 @@ export class PropertiesController {
     summary:
       'Crear una nueva propiedad (cualquier usuario logueado, queda como dueño)',
   })
-  @ApiResponse({ status: 201, description: 'Propiedad creada correctamente' })
+  @ApiResponse({
+    status: 201,
+    description: 'Propiedad creada correctamente',
+    schema: { example: { ...PROPERTY_EXAMPLE, owner: { id: USER_EXAMPLE.id } } },
+  })
+  @ApiResponse({ status: 400, description: 'Datos de la propiedad inválidos' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   create(@Body() createPropertyDto: CreatePropertyDto, @Req() req: Request) {
     const requester = req.user as { id: string };
     return this.propertiesService.create(createPropertyDto, requester.id);
@@ -82,7 +94,13 @@ export class PropertiesController {
   @ApiResponse({
     status: 201,
     description: 'Imágenes subidas correctamente, se devuelven sus URLs',
+    schema: { example: { urls: PROPERTY_EXAMPLE.images } },
   })
+  @ApiResponse({
+    status: 400,
+    description: 'Falta el archivo, alguno no es una imagen o pesa más de 5 MB',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   async uploadImages(
     @UploadedFiles(
       new ParseFilePipe({
@@ -147,7 +165,11 @@ searchProperties(@Query()searchDto: PropertySearchDto){
   @Get()
   @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Listar propiedades, con filtros opcionales' })
+  @ApiOperation({
+    summary: 'Listar propiedades, con filtros opcionales',
+    description:
+      'Público: solo las activas, 20 por página. Con token de admin trae también las dadas de baja, 10 por página',
+  })
   @ApiQuery({
     name: 'country',
     required: false,
@@ -161,9 +183,14 @@ searchProperties(@Query()searchDto: PropertySearchDto){
   @ApiQuery({
     name: 'page',
     required: false,
+    type: Number,
     description: 'Número de página (por defecto 1)',
   })
-  @ApiResponse({ status: 200, description: 'Listado de propiedades' })
+  @ApiResponse({
+    status: 200,
+    description: 'Listado de propiedades',
+    schema: { example: [PROPERTY_EXAMPLE] },
+  })
   findAll(
     @Query('country') country?: string,
     @Query('city') city?: string,
@@ -184,7 +211,11 @@ searchProperties(@Query()searchDto: PropertySearchDto){
   @ApiOperation({
     summary: 'Listar las propiedades favoritas del usuario logueado',
   })
-  @ApiResponse({ status: 200, description: 'Lista de propiedades favoritas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de propiedades favoritas',
+    schema: { example: [PROPERTY_EXAMPLE] },
+  })
   @ApiResponse({ status: 401, description: 'No autenticado' })
   findFavorites(@Req() req: Request) {
     const requester = req.user as { id: string };
@@ -193,16 +224,32 @@ searchProperties(@Query()searchDto: PropertySearchDto){
 
   @Get('nearby')
   @ApiOperation({ summary: 'Buscar propiedades cercanas a una ubicación' })
-  @ApiQuery({ name: 'lat', description: 'Latitud del punto de búsqueda' })
-  @ApiQuery({ name: 'lng', description: 'Longitud del punto de búsqueda' })
+  @ApiQuery({
+    name: 'lat',
+    type: Number,
+    example: -34.5889,
+    description: 'Latitud del punto de búsqueda',
+  })
+  @ApiQuery({
+    name: 'lng',
+    type: Number,
+    example: -58.4309,
+    description: 'Longitud del punto de búsqueda',
+  })
   @ApiQuery({
     name: 'radiusKm',
     required: false,
+    type: Number,
     description: 'Radio de búsqueda en km (por defecto 10)',
   })
   @ApiResponse({
     status: 200,
     description: 'Propiedades dentro del radio, ordenadas de más cerca a más lejos',
+    schema: { example: [{ ...PROPERTY_EXAMPLE, distanceKm: 2.4 }] },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'lat, lng o radiusKm faltan o no son números',
   })
   findNearby(
     @Query('lat', ParseFloatPipe) lat: number,
@@ -216,12 +263,20 @@ searchProperties(@Query()searchDto: PropertySearchDto){
   @Get(':id')
   @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({ summary: 'Buscar una propiedad por id' })
+  @ApiOperation({
+    summary: 'Buscar una propiedad por id',
+    description:
+      'Incluye al owner. Público: 404 si está dada de baja. Con token de admin también devuelve las dadas de baja',
+  })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
-  @ApiResponse({ status: 200, description: 'Propiedad encontrada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Propiedad encontrada',
+    schema: { example: PROPERTY_WITH_OWNER_EXAMPLE },
+  })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
-  findOne(@Param('id') id: string, @Req() req: Request) {
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { isAdmin: boolean } | undefined;
     if (requester?.isAdmin) {
       return this.propertiesService.findOne(id);
@@ -236,8 +291,17 @@ searchProperties(@Query()searchDto: PropertySearchDto){
     summary: 'Actualizar una propiedad existente (dueño, o admin)',
   })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
-  @ApiResponse({ status: 200, description: 'Propiedad actualizada' })
-  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({
+    status: 200,
+    description: 'Propiedad actualizada',
+    schema: { example: PROPERTY_WITH_OWNER_EXAMPLE },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'El id no es un UUID válido, datos inválidos o campos que no se pueden modificar (por ejemplo rating u owner)',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({
     status: 403,
     description: 'No podés modificar una propiedad que no es tuya',
@@ -263,11 +327,16 @@ searchProperties(@Query()searchDto: PropertySearchDto){
   @ApiOperation({
     summary:
       'Desactivar una propiedad (borrado lógico, no elimina el registro; dueño, o admin)',
+    description: 'Queda con isDeleted = true e isAvailable = false',
   })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
   @ApiResponse({
     status: 200,
     description: 'Propiedad desactivada correctamente',
+    schema: { example: { ...PROPERTY_WITH_OWNER_EXAMPLE, isDeleted: true, isAvailable: false } },
   })
+  @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({
     status: 403,
     description: 'No podés eliminar una propiedad que no es tuya',
@@ -285,13 +354,18 @@ searchProperties(@Query()searchDto: PropertySearchDto){
     summary: 'Agregar una propiedad a los favoritos del usuario logueado',
   })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
-  @ApiResponse({ status: 201, description: 'Propiedad agregada a favoritos' })
+  @ApiResponse({
+    status: 201,
+    description: 'Propiedad agregada a favoritos',
+    schema: { example: PROPERTY_WITH_OWNER_EXAMPLE },
+  })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
   @ApiResponse({
     status: 409,
     description: 'La propiedad ya está en tus favoritos',
   })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   addToFavorites(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string };
     return this.propertiesService.addToFavorites(id, requester.id);
@@ -304,12 +378,17 @@ searchProperties(@Query()searchDto: PropertySearchDto){
     summary: 'Quitar una propiedad de los favoritos del usuario logueado',
   })
   @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
-  @ApiResponse({ status: 200, description: 'Propiedad eliminada de favoritos' })
+  @ApiResponse({
+    status: 200,
+    description: 'Propiedad eliminada de favoritos',
+    schema: { example: MESSAGE_EXAMPLE('Propiedad eliminada de favoritos') },
+  })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({
     status: 404,
     description: 'La propiedad no está en tus favoritos',
   })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   removeFromFavorites(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,
