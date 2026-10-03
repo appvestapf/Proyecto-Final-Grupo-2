@@ -1,5 +1,5 @@
-import { Type } from "class-transformer";
-import { IsDateString, IsNumber, IsOptional, IsString } from "class-validator";
+import { Transform, Type } from "class-transformer";
+import { IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class PropertySearchDto {
     @IsOptional()
@@ -18,6 +18,29 @@ export class PropertySearchDto {
     @Type(()=>Number)
     @IsNumber()
     capacity?:number;
+
+    @IsOptional()
+    @IsIn(['Temporario', 'Residencial'])
+    rentalType?:string;
+
+    @IsOptional()
+    @IsIn(['noche', 'mes'])
+    priceUnit?:string;
+
+    @IsOptional()
+    @Type(()=>Number)
+    @IsNumber()
+    @Min(0)
+    maxPrice?:number;
+
+    @IsOptional()
+    @Transform(({ value }) => {
+      if (value === 'true' || value === true) return true;
+      if (value === 'false' || value === false) return false;
+      return value;
+    })
+    @IsBoolean()
+    isPetFriendly?:boolean;
 
     @IsOptional()
     @Type(()=>Number)

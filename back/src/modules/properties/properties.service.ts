@@ -56,18 +56,31 @@ export class PropertiesService {
   }
 
   async searchProperties(filters: PropertySearchDto){
-    const{keyword,startDate,endDate,capacity,lat,lng,radius}=filters;
+    const{keyword,startDate,endDate,capacity,rentalType,priceUnit,maxPrice,isPetFriendly,lat,lng,radius}=filters;
     const query = this.propertiesRepository.createQueryBuilder('property').
     where('property.isDeleted = :isDeleted',{isDeleted: false}).
     andWhere('property.isAvailable = :isAvailable',{isAvailable: true})
     if(keyword){
       query.andWhere(`(LOWER(unaccent(property.city))LIKE LOWER (unaccent(:keyword))
-        OR LOWER(unaccent(property.country))LIKE LOWER(unaccent(:keyword)))`,{
+        OR LOWER(unaccent(property.country))LIKE LOWER(unaccent(:keyword))
+        OR LOWER(unaccent(property.name))LIKE LOWER(unaccent(:keyword)))`,{
           keyword: `%${keyword}%`
         })
     }
     if(capacity!==undefined){
       query.andWhere('property.capacity>=:capacity',{capacity})
+    }
+    if(rentalType){
+      query.andWhere('LOWER(property.rentalType)=LOWER(:rentalType)',{rentalType})
+    }
+    if(isPetFriendly!==undefined){
+      query.andWhere('property.isPetFriendly=:isPetFriendly',{isPetFriendly})
+    }
+    if(maxPrice!==undefined){
+      if(!priceUnit){
+        throw new BadRequestException('Para filtrar por precio máximo debes indicar la unidad de precio (noche o mes)')
+      }
+      query.andWhere('property.price<=:maxPrice AND property.priceUnit=:priceUnit',{maxPrice,priceUnit})
     }
     if((startDate&&!endDate)||(!startDate&&endDate)){
       throw new BadRequestException('Para buscar por disponibilidad debes indicar fecha de inicio y fecha de finalización')
