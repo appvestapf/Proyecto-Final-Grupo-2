@@ -10,6 +10,9 @@ export interface PropertySearchParams {
   lat?: number;
   lng?: number;
   radius?: number;
+  rentalType?: string;
+  maxPrice?: number;
+  isPetFriendly?: boolean;
 }
 
 const mapBackendToProperty = (item: any): Property => ({
@@ -44,6 +47,22 @@ export const propertyService = {
       if (typeof params.capacity === 'number' && params.capacity > 0) {
         queryParams.append('capacity', params.capacity.toString());
       }
+
+      /*
+
+      if (params.rentalType?.trim()) {
+        queryParams.append('rentalType', params.rentalType.trim());
+      }
+
+      if (typeof params.maxPrice === 'number' && !isNaN(params.maxPrice) && params.maxPrice > 0) {
+        queryParams.append('maxPrice', params.maxPrice.toString());
+      }
+
+      if (typeof params.isPetFriendly === 'boolean') {
+        queryParams.append('isPetFriendly', params.isPetFriendly.toString());
+      }
+
+      */
 
       // Sanitización y formato de coordenadas/radio
       if (

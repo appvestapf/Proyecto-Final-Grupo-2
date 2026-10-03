@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { SearchFilterBar } from '@/components/property/SearchFilterBar/SearchFilterBar';
 import { CardInmueble } from '@/components/property/CardInmueble/CardInmueble';
 import { Pagination } from '@/components/common/Pagination/Pagination';
-import { Property, PropertyLocation } from '@/interfaces/property';
+import { Property, PropertyMapProps } from '@/interfaces/property';
 import { propertyService, PropertySearchParams } from '@/services/propertyService';
+import { mapPropertiesToLocations } from '@/utils/propertyMappers';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// Carga dinámica de PropertyMap con tipado explícito para evitar fallos de overloaded props
-const PropertyMap = dynamic<any>(
+// Carga dinámica de PropertyMap con ssr: false
+const PropertyMap = dynamic<PropertyMapProps>(
   () => import('@/components/property/PropertyMap/PropertyMap').then((mod) => mod.PropertyMap),
   { ssr: false }
 );
@@ -20,13 +21,12 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   
   const [properties, setProperties] = useState<Property[]>([]);
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
-  // Carga de propiedades desde el backend usando /properties/search
+  // Carga de propiedades desde el servicio según los parámetros de la URL
   useEffect(() => {
     const loadProperties = async () => {
       setLoading(true);
@@ -36,6 +36,13 @@ function CatalogContent() {
         const endDate = searchParams.get('endDate') || undefined;
         const capacityParam = searchParams.get('capacity');
         const capacity = capacityParam ? parseInt(capacityParam, 10) : undefined;
+        
+        const rentalType = searchParams.get('rentalType') || undefined;
+        const maxPriceParam = searchParams.get('maxPrice');
+        const maxPrice = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
+        const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
+        const isPetFriendly = isPetFriendlyParam === 'true' ? true : undefined;
+
         const latParam = searchParams.get('lat');
         const lngParam = searchParams.get('lng');
         const radiusParam = searchParams.get('radius');
@@ -45,6 +52,9 @@ function CatalogContent() {
           startDate,
           endDate,
           capacity: capacity && !isNaN(capacity) ? capacity : undefined,
+          rentalType,
+          maxPrice: maxPrice && !isNaN(maxPrice) ? maxPrice : undefined,
+          isPetFriendly,
           ...(latParam && lngParam ? {
             lat: parseFloat(latParam),
             lng: parseFloat(lngParam),
@@ -54,6 +64,7 @@ function CatalogContent() {
 
         const data = await propertyService.searchProperties(searchPayload);
         setProperties(data);
+        setCurrentPage(1);
       } catch (error) {
         console.error("Error al cargar propiedades con filtros:", error);
       } finally {
@@ -64,43 +75,34 @@ function CatalogContent() {
     loadProperties();
   }, [searchParams]);
 
-  // Filtros de cliente (RentalType, MaxPrice, PetFriendly)
-  useEffect(() => {
+  // Filtro defensivo de respaldo en el cliente
+  const filteredProperties = useMemo(() => {
     const rentalType = searchParams.get('rentalType');
     const maxPrice = searchParams.get('maxPrice');
     const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
 
-    let result = [...properties];
-
-    if (rentalType) {
-      result = result.filter(p => 
-        p.rentalType?.toLowerCase() === rentalType.toLowerCase()
-      );
-    }
-
-    if (maxPrice) {
-      const price = parseFloat(maxPrice);
-      if (!isNaN(price)) {
-        result = result.filter(p => p.price <= price);
+    return properties.filter(p => {
+      if (rentalType && p.rentalType?.toLowerCase() !== rentalType.toLowerCase()) {
+        return false;
       }
-    }
-
-    if (isPetFriendlyParam === 'true') {
-      result = result.filter(p => (p as any).isPetFriendly === true || (p as any).petsAllowed === true);
-    }
-
-    setFilteredProperties(result);
-    setCurrentPage(1);
-  }, [searchParams, properties]);
+      if (maxPrice && !isNaN(parseFloat(maxPrice)) && p.price > parseFloat(maxPrice)) {
+        return false;
+      }
+      if (isPetFriendlyParam === 'true') {
+        const hasPets = p.isPetFriendly === true || (p as any).petsAllowed === true;
+        if (!hasPets) return false;
+      }
+      return true;
+    });
+  }, [properties, searchParams]);
 
   const handleResetFilters = () => {
     router.push('/catalog');
   };
 
-  // Callback al hacer click en "Rebuscar en esta área" manteniendo los filtros previos
+  // Re-búsqueda por área geográfica manteniendo el estado en los query params
   const handleAreaSearch = (lat: number, lng: number, radius: number) => {
     const params = new URLSearchParams(searchParams.toString());
-
     params.set('lat', lat.toFixed(6));
     params.set('lng', lng.toFixed(6));
     params.set('radius', Math.round(radius).toString());
@@ -112,21 +114,14 @@ function CatalogContent() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredProperties.slice(startIndex, startIndex + itemsPerPage);
 
-  // Convierte las propiedades filtradas que tengan coordenadas válidas al formato que requiere el mapa
-  const mapLocations: PropertyLocation[] = filteredProperties
-    .filter((p): p is Property & { lat: number; lng: number } => 
-      typeof p.lat === 'number' && typeof p.lng === 'number'
-    )
-    .map((p) => ({
-      id: p.id,
-      title: p.title || p.name || 'Inmueble',
-      price: p.price,
-      lat: p.lat!,
-      lng: p.lng!,
-      image: p.images && p.images.length > 0 ? p.images[0] : undefined,
-      address: p.location,
-      city: p.location,
-    }));
+  // Mapeo limpio usando nuestro helper utilitario
+  const mapLocations = useMemo(() => {
+    return mapPropertiesToLocations(filteredProperties);
+  }, [filteredProperties]);
+
+  // Coordenadas iniciales derivadas de la URL (si existen)
+  const initialLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined;
+  const initialLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : undefined;
 
   return (
     <div className="max-w-[1400px] mx-auto px-2 lg:px-6">
@@ -173,7 +168,7 @@ function CatalogContent() {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
               >
                 Limpiar filtros
               </button>
@@ -198,6 +193,8 @@ function CatalogContent() {
             properties={mapLocations} 
             hoveredPropertyId={hoveredPropertyId}
             onAreaSearch={handleAreaSearch}
+            initialLat={initialLat}
+            initialLng={initialLng}
           />
         </div>
 

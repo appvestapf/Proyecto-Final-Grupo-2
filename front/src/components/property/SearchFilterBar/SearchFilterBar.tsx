@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, MapPin, Plus, Minus, SlidersHorizontal, X } from 'lucide-react';
+import { Search, MapPin, Plus, Minus, SlidersHorizontal, X, RotateCcw } from 'lucide-react';
 import { DateRange, RangeKeyDict, Range } from 'react-date-range';
 import { es } from 'date-fns/locale';
 import { format, parseISO, isValid } from 'date-fns';
@@ -47,7 +47,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Estados de Filtros desde URL params (Acepta 'keyword' o 'location')
+  // Estados de Filtros desde URL params
   const [location, setLocation] = useState(
     searchParams.get('keyword') || searchParams.get('location') || ''
   );
@@ -126,7 +126,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
 
     const params = new URLSearchParams();
 
-    // Se envía 'keyword' que es lo que espera el backend
     if (location.trim()) params.set('keyword', location.trim().split(',')[0]);
     if (capacity > 1) params.set('capacity', capacity.toString());
 
@@ -148,6 +147,18 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     router.push(`/catalog?${params.toString()}`);
   };
 
+  // Limpiar todos los filtros activos
+  const handleResetFilters = () => {
+    setLocation('');
+    setCapacity(1);
+    setRentalType('');
+    setMaxPrice('');
+    setIsPetFriendly(false);
+    const today = new Date();
+    setDateRange([{ startDate: today, endDate: today, key: 'selection' }]);
+    router.push('/catalog');
+  };
+
   const destinosFiltrados = DESTINOS_FAMOSOS.filter(dest =>
     dest.toLowerCase().includes(location.toLowerCase())
   );
@@ -156,6 +167,10 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
   const endDate = dateRange[0]?.endDate;
   const hasActiveDates = Boolean(
     startDate && endDate && startDate.getTime() !== endDate.getTime()
+  );
+
+  const hasActiveFilters = Boolean(
+    location || capacity > 1 || hasActiveDates || rentalType || maxPrice || isPetFriendly
   );
 
   // ==========================================
@@ -177,18 +192,29 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
             <label htmlFor="hero-location-input" className="text-[11px] font-bold uppercase text-slate-800 dark:text-slate-300 tracking-wider text-left mb-0.5 cursor-text">
               Destino
             </label>
-            <input
-              id="hero-location-input"
-              type="text"
-              maxLength={30}
-              placeholder="¿A dónde vas?"
-              value={location}
-              onChange={(e) => { setLocation(e.target.value); setShowDestinations(true); }}
-              className="w-full bg-transparent text-slate-700 dark:text-slate-200 placeholder:text-slate-400 font-medium outline-none text-sm md:text-base truncate"
-            />
+            <div className="flex items-center justify-between gap-1">
+              <input
+                id="hero-location-input"
+                type="text"
+                maxLength={30}
+                placeholder="¿A dónde vas?"
+                value={location}
+                onChange={(e) => { setLocation(e.target.value); setShowDestinations(true); }}
+                className="w-full bg-transparent text-slate-700 dark:text-slate-200 placeholder:text-slate-400 font-medium outline-none text-sm md:text-base truncate"
+              />
+              {location && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setLocation(''); }}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
 
             {showDestinations && (
-              <div className="absolute top-full left-0 mt-2 md:mt-4 w-full max-w-[320px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden z-50 py-3">
+              <div className="absolute top-full left-0 mt-2 md:mt-4 w-full max-w-[320px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden z-[60] py-3">
                 <p className="px-6 text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Búsquedas populares</p>
                 <ul>
                   {destinosFiltrados.length > 0 ? (
@@ -240,7 +266,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
 
             {showCalendar && (
               <div
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 md:mt-4 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden z-50 border border-slate-200 dark:border-slate-800 p-2"
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 md:mt-4 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden z-[60] border border-slate-200 dark:border-slate-800 p-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <DateRange
@@ -325,10 +351,19 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
               onFocus={() => setShowDestinations(true)}
               className="w-full bg-transparent text-sm text-main focus:outline-none placeholder:text-muted"
             />
+            {location && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setLocation(''); }}
+                className="text-muted hover:text-main"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {showDestinations && (
-            <div className="absolute top-full left-0 mt-2 w-full min-w-[260px] bg-surface border border-subtle rounded-2xl shadow-2xl overflow-hidden z-50 py-2">
+            <div className="absolute top-full left-0 mt-2 w-full min-w-[260px] bg-surface border border-subtle rounded-2xl shadow-2xl overflow-hidden z-[60] py-2">
               <ul>
                 {destinosFiltrados.length > 0 ? (
                   destinosFiltrados.map((dest, idx) => (
@@ -365,7 +400,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
 
           {showCalendar && (
             <div
-              className="absolute top-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden z-50 border border-subtle p-2"
+              className="absolute top-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden z-[60] border border-subtle p-2"
               onClick={(e) => e.stopPropagation()}
             >
               <DateRange
@@ -414,14 +449,26 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
         <button
           type="button"
           onClick={() => setShowFilterModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-app hover:bg-subtle/40 rounded-xl border border-subtle text-sm text-main font-medium transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-app hover:bg-subtle/40 rounded-xl border border-subtle text-sm text-main font-medium transition-colors cursor-pointer relative"
         >
           <SlidersHorizontal size={16} />
           <span className="hidden sm:inline">Filtros</span>
           {(rentalType || maxPrice || isPetFriendly) && (
-            <span className="w-2 h-2 rounded-full bg-primary" />
+            <span className="w-2 h-2 rounded-full bg-primary absolute top-1.5 right-1.5" />
           )}
         </button>
+
+        {/* Botón Restablecer Filtros (Visible cuando hay filtros activos) */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            title="Limpiar filtros"
+            className="p-2 text-muted hover:text-main bg-app hover:bg-subtle/40 rounded-xl border border-subtle transition-colors cursor-pointer"
+          >
+            <RotateCcw size={16} />
+          </button>
+        )}
 
         {/* Botón Buscar */}
         <button
