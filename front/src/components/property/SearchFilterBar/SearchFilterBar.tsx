@@ -21,6 +21,8 @@ const DESTINOS_FAMOSOS = [
   "Ciudad de México, México"
 ];
 
+const SEARCH_STORAGE_KEY = 'vesta_last_search_params';
+
 interface SearchFilterBarProps {
   variant?: 'hero' | 'catalog';
 }
@@ -74,13 +76,54 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     ];
   });
 
-  // Sincronización cuando cambia la URL
+  // PERSISTENCIA: Restaurar búsqueda guardada si la URL viene vacía
   useEffect(() => {
-    setLocation(searchParams.get('keyword') || searchParams.get('location') || '');
-    setCapacity(Number(searchParams.get('capacity')) || 1);
-    setRentalType(searchParams.get('rentalType') || '');
-    setMaxPrice(searchParams.get('maxPrice') || '');
-    setIsPetFriendly(searchParams.get('isPetFriendly') === 'true');
+    const hasUrlParams = Array.from(searchParams.keys()).length > 0;
+
+    if (!hasUrlParams && typeof window !== 'undefined') {
+      const savedSearch = sessionStorage.getItem(SEARCH_STORAGE_KEY);
+      if (savedSearch) {
+        try {
+          const parsed = JSON.parse(savedSearch);
+          if (parsed.keyword) setLocation(parsed.keyword);
+          if (parsed.capacity) setCapacity(Number(parsed.capacity));
+          if (parsed.rentalType) setRentalType(parsed.rentalType);
+          if (parsed.maxPrice) setMaxPrice(parsed.maxPrice);
+          if (parsed.isPetFriendly) setIsPetFriendly(parsed.isPetFriendly === 'true');
+
+          if (parsed.startDate && parsed.endDate) {
+            const start = parseISO(parsed.startDate);
+            const end = parseISO(parsed.endDate);
+            if (isValid(start) && isValid(end)) {
+              setDateRange([{ startDate: start, endDate: end, key: 'selection' }]);
+            }
+          }
+
+          // Si estamos en la página del catálogo, aplicamos la URL recuperada
+          if (window.location.pathname === '/catalog') {
+            const queryStr = new URLSearchParams(parsed).toString();
+            if (queryStr) router.replace(`/catalog?${queryStr}`);
+          }
+        } catch (e) {
+          console.error("Error al leer la búsqueda guardada:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Sincronización cuando cambia la URL y Guardado en SessionStorage
+  useEffect(() => {
+    const keyword = searchParams.get('keyword') || searchParams.get('location') || '';
+    const cap = Number(searchParams.get('capacity')) || 1;
+    const rType = searchParams.get('rentalType') || '';
+    const price = searchParams.get('maxPrice') || '';
+    const pet = searchParams.get('isPetFriendly') === 'true';
+
+    setLocation(keyword);
+    setCapacity(cap);
+    setRentalType(rType);
+    setMaxPrice(price);
+    setIsPetFriendly(pet);
 
     const s = searchParams.get('startDate');
     const e = searchParams.get('endDate');
@@ -90,6 +133,13 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
       if (isValid(start) && isValid(end)) {
         setDateRange([{ startDate: start, endDate: end, key: 'selection' }]);
       }
+    }
+
+    // Si la URL contiene filtros activos, los guardamos en sessionStorage
+    if (Array.from(searchParams.keys()).length > 0 && typeof window !== 'undefined') {
+      const currentParams: Record<string, string> = {};
+      searchParams.forEach((val, key) => { currentParams[key] = val; });
+      sessionStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(currentParams));
     }
   }, [searchParams]);
 
@@ -125,21 +175,47 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     if (e) e.preventDefault();
 
     const params = new URLSearchParams();
+    const storageObj: Record<string, string> = {};
 
-    if (location.trim()) params.set('keyword', location.trim().split(',')[0]);
-    if (capacity > 1) params.set('capacity', capacity.toString());
+    if (location.trim()) {
+      const loc = location.trim().split(',')[0];
+      params.set('keyword', loc);
+      storageObj['keyword'] = loc;
+    }
+    if (capacity > 1) {
+      params.set('capacity', capacity.toString());
+      storageObj['capacity'] = capacity.toString();
+    }
 
     const startDate = dateRange[0]?.startDate;
     const endDate = dateRange[0]?.endDate;
 
     if (startDate && endDate && startDate.getTime() !== endDate.getTime()) {
-      params.set('startDate', format(startDate, 'yyyy-MM-dd'));
-      params.set('endDate', format(endDate, 'yyyy-MM-dd'));
+      const sFormatted = format(startDate, 'yyyy-MM-dd');
+      const eFormatted = format(endDate, 'yyyy-MM-dd');
+      params.set('startDate', sFormatted);
+      params.set('endDate', eFormatted);
+      storageObj['startDate'] = sFormatted;
+      storageObj['endDate'] = eFormatted;
     }
 
-    if (rentalType) params.set('rentalType', rentalType);
-    if (maxPrice) params.set('maxPrice', maxPrice);
-    if (isPetFriendly) params.set('isPetFriendly', 'true');
+    if (rentalType) {
+      params.set('rentalType', rentalType);
+      storageObj['rentalType'] = rentalType;
+    }
+    if (maxPrice) {
+      params.set('maxPrice', maxPrice);
+      storageObj['maxPrice'] = maxPrice;
+    }
+    if (isPetFriendly) {
+      params.set('isPetFriendly', 'true');
+      storageObj['isPetFriendly'] = 'true';
+    }
+
+    // Persistir estado en SessionStorage
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(storageObj));
+    }
 
     setShowFilterModal(false);
     setShowCalendar(false);
@@ -156,6 +232,12 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     setIsPetFriendly(false);
     const today = new Date();
     setDateRange([{ startDate: today, endDate: today, key: 'selection' }]);
+
+    // Borrar estado guardado
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY);
+    }
+
     router.push('/catalog');
   };
 

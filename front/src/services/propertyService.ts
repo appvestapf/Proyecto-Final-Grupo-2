@@ -48,8 +48,6 @@ export const propertyService = {
         queryParams.append('capacity', params.capacity.toString());
       }
 
-      /*
-
       if (params.rentalType?.trim()) {
         queryParams.append('rentalType', params.rentalType.trim());
       }
@@ -61,8 +59,6 @@ export const propertyService = {
       if (typeof params.isPetFriendly === 'boolean') {
         queryParams.append('isPetFriendly', params.isPetFriendly.toString());
       }
-
-      */
 
       // Sanitización y formato de coordenadas/radio
       if (

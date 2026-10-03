@@ -9,6 +9,17 @@ import { Property, PropertyMapProps } from '@/interfaces/property';
 import { propertyService, PropertySearchParams } from '@/services/propertyService';
 import { mapPropertiesToLocations } from '@/utils/propertyMappers';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { SearchX, MapPin, RefreshCw } from 'lucide-react';
+
+const SEARCH_STORAGE_KEY = 'vesta_last_search_params';
+
+const SUGGESTED_DESTINATIONS = [
+  "Buenos Aires",
+  "Córdoba",
+  "Mendoza",
+  "Santiago",
+  "Bogotá"
+];
 
 // Carga dinámica de PropertyMap con ssr: false
 const PropertyMap = dynamic<PropertyMapProps>(
@@ -19,7 +30,7 @@ const PropertyMap = dynamic<PropertyMapProps>(
 function CatalogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [properties, setProperties] = useState<Property[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | number | null>(null);
@@ -36,7 +47,7 @@ function CatalogContent() {
         const endDate = searchParams.get('endDate') || undefined;
         const capacityParam = searchParams.get('capacity');
         const capacity = capacityParam ? parseInt(capacityParam, 10) : undefined;
-        
+
         const rentalType = searchParams.get('rentalType') || undefined;
         const maxPriceParam = searchParams.get('maxPrice');
         const maxPrice = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
@@ -97,7 +108,17 @@ function CatalogContent() {
   }, [properties, searchParams]);
 
   const handleResetFilters = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(SEARCH_STORAGE_KEY);
+    }
     router.push('/catalog');
+  };
+
+  const handleSelectSuggestedDestination = (dest: string) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify({ keyword: dest }));
+    }
+    router.push(`/catalog?keyword=${encodeURIComponent(dest)}`);
   };
 
   // Re-búsqueda por área geográfica manteniendo el estado en los query params
@@ -128,18 +149,18 @@ function CatalogContent() {
       <h1 className="text-3xl font-bold text-main mb-6 text-center tracking-tight">
         Catálogo de Inmuebles
       </h1>
-      
+
       <SearchFilterBar variant="catalog" />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-6">
-        
+
         {/* Lista de Tarjetas */}
         <div className="lg:col-span-7 space-y-6">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center py-2">
               {[...Array(6)].map((_, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="w-full max-w-sm h-80 bg-surface border border-subtle rounded-2xl animate-pulse"
                 />
               ))}
@@ -158,27 +179,52 @@ function CatalogContent() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 px-4 bg-surface border border-subtle rounded-2xl my-6 flex flex-col items-center">
-              <p className="text-main font-medium text-lg mb-1">
-                No se encontraron inmuebles
+            /* ESTADO VACÍO MEJORADO */
+            <div className="text-center py-12 px-6 bg-surface border border-subtle rounded-3xl my-6 flex flex-col items-center shadow-sm">
+              <div className="w-16 h-16 bg-app rounded-full flex items-center justify-center text-muted mb-4 border border-subtle">
+                <SearchX size={32} />
+              </div>
+              <h3 className="text-main font-bold text-xl mb-1">
+                No encontramos propiedades disponibles
+              </h3>
+              <p className="text-muted text-sm max-w-md mb-6 leading-relaxed">
+                Prueba borrando o ajustando los filtros seleccionados, o explora uno de nuestros destinos sugeridos.
               </p>
-              <p className="text-muted text-sm mb-4">
-                Intenta ajustando o borrando algunos de los filtros seleccionados.
-              </p>
+
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-all cursor-pointer shadow-md hover:shadow-lg mb-8"
               >
-                Limpiar filtros
+                <RefreshCw size={16} />
+                <span>Limpiar todos los filtros</span>
               </button>
+
+              <div className="w-full border-t border-subtle pt-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted mb-3">
+                  Destinos populares
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {SUGGESTED_DESTINATIONS.map((dest) => (
+                    <button
+                      key={dest}
+                      type="button"
+                      onClick={() => handleSelectSuggestedDestination(dest)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-app hover:bg-subtle/40 border border-subtle rounded-full text-xs text-main font-medium transition-colors cursor-pointer"
+                    >
+                      <MapPin size={12} className="text-primary" />
+                      <span>{dest}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
           {!loading && totalPages > 1 && (
             <div className="mt-8 flex justify-center">
-              <Pagination 
-                currentPage={currentPage} 
+              <Pagination
+                currentPage={currentPage}
                 totalPages={totalPages}
                 onPrev={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 onNext={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
@@ -189,8 +235,8 @@ function CatalogContent() {
 
         {/* Mapa Interactivo */}
         <div className="hidden lg:block lg:col-span-5 sticky top-6 h-[calc(100vh-140px)] min-h-[500px]">
-          <PropertyMap 
-            properties={mapLocations} 
+          <PropertyMap
+            properties={mapLocations}
             hoveredPropertyId={hoveredPropertyId}
             onAreaSearch={handleAreaSearch}
             initialLat={initialLat}

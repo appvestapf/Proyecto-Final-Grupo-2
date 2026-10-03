@@ -10,9 +10,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
 import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
-import { Property, PropertyMapProps } from '@/interfaces/property';
+import { Property } from '@/interfaces/property';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
-import { mapPropertiesToLocations } from '@/utils/propertyMappers';
 
 // Importaciones del Calendario
 import { DateRange, Range } from 'react-date-range';
@@ -21,10 +20,17 @@ import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css'; 
 
-// Importación dinámica de PropertyMap deshabilitando SSR para Leaflet
-const PropertyMap = dynamic<PropertyMapProps>(
-  () => import('@/components/property/PropertyMap/PropertyMap').then((mod) => mod.PropertyMap),
-  { ssr: false }
+// Importación dinámica de PropertyDetailMap deshabilitando SSR para Mapbox
+const PropertyDetailMap = dynamic(
+  () => import('@/components/property/PropertyDetailMap/PropertyDetailMap').then((mod) => mod.PropertyDetailMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[380px] bg-surface rounded-2xl animate-pulse border border-subtle flex items-center justify-center text-muted text-sm">
+        Cargando mapa de ubicación...
+      </div>
+    ),
+  }
 );
 
 interface PageProps {
@@ -99,10 +105,9 @@ export default function PropertyDetailPage({ params }: PageProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Mapeo defensivo del inmueble a formato del mapa
-  const propertyLocations = useMemo(() => {
-    return property ? mapPropertiesToLocations([property]) : [];
-  }, [property]);
+  // Conversión numérica y segura de las coordenadas
+  const lat = property ? Number(property.lat) : 0;
+  const lng = property ? Number(property.lng) : 0;
 
   // Cálculo de noches para alquileres temporarios
   const calculateNights = () => {
@@ -328,23 +333,24 @@ export default function PropertyDetailPage({ params }: PageProps) {
               <hr className="border-t border-subtle mb-8" />
 
               {/* SECCIÓN DE UBICACIÓN Y MAPA */}
-              <div className="mb-10">
-                <h3 className="text-2xl font-bold text-main mb-3 tracking-tight flex items-center gap-2">
-                  <MapPin className="text-primary" size={24} />
-                  Ubicación
-                </h3>
-                <p className="text-muted text-base mb-6">
-                  {property.location}
-                </p>
-                <div className="w-full h-[380px] rounded-2xl overflow-hidden border border-subtle shadow-sm">
-                  <PropertyMap 
-                    properties={propertyLocations} 
-                    initialLat={property.lat}
-                    initialLng={property.lng}
-                    zoom={15}
+              {!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && (
+                <div className="mb-10">
+                  <h3 className="text-2xl font-bold text-main mb-3 tracking-tight flex items-center gap-2">
+                    <MapPin className="text-primary" size={24} />
+                    Ubicación
+                  </h3>
+                  <p className="text-muted text-base mb-6">
+                    {property.location}
+                  </p>
+                  <PropertyDetailMap 
+                    lat={lat}
+                    lng={lng}
+                    title={property.title}
+                    isExactLocationVisible={false}
+                    radiusInMeters={350}
                   />
                 </div>
-              </div>
+              )}
             </div>
 
             {/* CAJA LATERAL FLOTANTE */}
