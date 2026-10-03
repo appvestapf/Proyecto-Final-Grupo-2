@@ -165,7 +165,7 @@ export const PropertyMap = ({
               longitude={prop.lng}
               anchor={simpleMarker ? 'center' : 'bottom'}
               style={{ zIndex: isHovered ? 50 : 10 }}
-              onClick={(e) => {
+              onClick={(e: any) => {
                 e.originalEvent.stopPropagation();
                 if (showPopup) setSelectedProperty(prop);
                 if (onSelectProperty) onSelectProperty(prop.id);
