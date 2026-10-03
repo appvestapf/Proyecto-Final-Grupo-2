@@ -1,7 +1,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { Property } from './entities/property.entity';
 import { User } from '../users/entities/user.entity';
@@ -126,6 +130,47 @@ describe('PropertiesService', () => {
 
       expect(result.map((p: any) => p.id)).toEqual(['cerca', 'medio']);
       expect(result[0]).toHaveProperty('distanceKm');
+    });
+
+    it('filtra por rentalType e isPetFriendly', async () => {
+      await service.searchProperties({
+        rentalType: 'Residencial',
+        isPetFriendly: true,
+      } as any);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'LOWER(property.rentalType)=LOWER(:rentalType)',
+        { rentalType: 'Residencial' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'property.isPetFriendly=:isPetFriendly',
+        { isPetFriendly: true },
+      );
+    });
+
+    it('filtra por maxPrice junto con priceUnit', async () => {
+      await service.searchProperties({
+        maxPrice: 50000,
+        priceUnit: 'mes',
+      } as any);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'property.price<=:maxPrice AND property.priceUnit=:priceUnit',
+        { maxPrice: 50000, priceUnit: 'mes' },
+      );
+    });
+
+    it('rechaza maxPrice sin priceUnit', async () => {
+      await expect(
+        service.searchProperties({ maxPrice: 50000 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('incluye el nombre de la propiedad en la búsqueda por keyword', async () => {
+      await service.searchProperties({ keyword: 'palermo' } as any);
+
+      const conditions = queryBuilder.andWhere.mock.calls.map(([c]: any[]) => c);
+      expect(conditions.some((c: string) => c.includes('property.name'))).toBe(true);
     });
   });
 
