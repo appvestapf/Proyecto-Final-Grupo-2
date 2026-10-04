@@ -40,5 +40,28 @@ export const appointmentService = {
       console.error(error);
       return [];
     }
+  },
+
+  // 3. Cancelar una visita presencial
+  async cancelAppointment(appointmentId: string, token: string) {
+    try {
+      const response = await fetch(`${API_URL}/appointments/${appointmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al cancelar la visita');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("Error en cancelAppointment:", error);
+      throw error;
+    }
   }
 };

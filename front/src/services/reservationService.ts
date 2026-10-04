@@ -43,5 +43,27 @@ export const reservationService = {
       console.error(`Error obteniendo fechas bloqueadas para la propiedad ${propertyId}:`, error);
       return [];
     }
+  },
+
+  async cancelReservation(reservationId: string, token: string) {
+    try {
+      const response = await fetch(`${API_URL}/reservations/${reservationId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al cancelar la reserva');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("Error en cancelReservation:", error);
+      throw error;
+    }
   }
 };

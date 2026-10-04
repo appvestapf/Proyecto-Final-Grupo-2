@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Property } from '@/interfaces/property';
 import { Badge } from '@/components/common/Badge/Badge';
@@ -5,10 +7,19 @@ import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButto
 import { Star, Bath, Bed, Tag } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 export const CardInmueble = ({ data }: { data: Property }) => {
+  const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+
+  // Construimos la URL dinámica: si existen parámetros activos (fechas, ubicación, etc.), los adjuntamos
+  const detailHref = queryString
+    ? `/catalog/${data.id}?${queryString}`
+    : `/catalog/${data.id}`;
+
   return (
-    <Link href={`/catalog/${data.id}`} className="block w-full h-full">
+    <Link href={detailHref} className="block w-full h-full">
       <div className="w-full h-full bg-surface rounded-[12px] border border-subtle shadow-sm overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:-translate-y-1">
         
         {/* Contenedor de Imagen */}

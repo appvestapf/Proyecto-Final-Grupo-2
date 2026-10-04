@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Plus, Minus, SlidersHorizontal, X, RotateCcw } from 'lucide-react';
 import { DateRange, RangeKeyDict, Range } from 'react-date-range';
@@ -31,52 +31,35 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Referencias para cierre de dropdowns
   const destRef = useRef<HTMLDivElement>(null);
   const calRef = useRef<HTMLDivElement>(null);
 
-  // Control de UI
   const [showDestinations, setShowDestinations] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detección de pantalla responsiva
+  // Estados de Filtros
+  const [location, setLocation] = useState('');
+  const [capacity, setCapacity] = useState(1);
+  const [rentalType, setRentalType] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [isPetFriendly, setIsPetFriendly] = useState(false);
+  const [dateRange, setDateRange] = useState<Range[]>([
+    { startDate: new Date(), endDate: new Date(), key: 'selection' }
+  ]);
+
+  // Detección eficiente de pantalla responsiva
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mediaQuery.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
-  // Estados de Filtros desde URL params
-  const [location, setLocation] = useState(
-    searchParams.get('keyword') || searchParams.get('location') || ''
-  );
-  const [capacity, setCapacity] = useState(Number(searchParams.get('capacity')) || 1);
-  const [rentalType, setRentalType] = useState(searchParams.get('rentalType') || '');
-  const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
-  const [isPetFriendly, setIsPetFriendly] = useState(searchParams.get('isPetFriendly') === 'true');
-
-  // Inicialización Segura de Fechas
-  const [dateRange, setDateRange] = useState<Range[]>(() => {
-    const initStart = searchParams.get('startDate');
-    const initEnd = searchParams.get('endDate');
-
-    const parsedStart = initStart ? parseISO(initStart) : null;
-    const parsedEnd = initEnd ? parseISO(initEnd) : null;
-
-    const today = new Date();
-    return [
-      {
-        startDate: parsedStart && isValid(parsedStart) ? parsedStart : today,
-        endDate: parsedEnd && isValid(parsedEnd) ? parsedEnd : today,
-        key: 'selection'
-      }
-    ];
-  });
-
-  // PERSISTENCIA: Restaurar búsqueda guardada si la URL viene vacía
+  // Restauración desde sessionStorage (Solo si URL está vacía al cargar)
   useEffect(() => {
     const hasUrlParams = Array.from(searchParams.keys()).length > 0;
 
@@ -99,7 +82,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
             }
           }
 
-          // Si estamos en la página del catálogo, aplicamos la URL recuperada
           if (window.location.pathname === '/catalog') {
             const queryStr = new URLSearchParams(parsed).toString();
             if (queryStr) router.replace(`/catalog?${queryStr}`);
@@ -109,9 +91,9 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
         }
       }
     }
-  }, []);
+  }, []); // Carga única al montar
 
-  // Sincronización cuando cambia la URL y Guardado en SessionStorage
+  // Sincronizar desde URLParams
   useEffect(() => {
     const keyword = searchParams.get('keyword') || searchParams.get('location') || '';
     const cap = Number(searchParams.get('capacity')) || 1;
@@ -135,7 +117,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
       }
     }
 
-    // Si la URL contiene filtros activos, los guardamos en sessionStorage
     if (Array.from(searchParams.keys()).length > 0 && typeof window !== 'undefined') {
       const currentParams: Record<string, string> = {};
       searchParams.forEach((val, key) => { currentParams[key] = val; });
@@ -143,7 +124,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     }
   }, [searchParams]);
 
-  // Manejo de Click Outside y Tecla Escape
+  // Click outside / Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (destRef.current && !destRef.current.contains(event.target as Node)) {
@@ -170,8 +151,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     };
   }, []);
 
-  // Handler de Búsqueda
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = useCallback((e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     const params = new URLSearchParams();
@@ -212,7 +192,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
       storageObj['isPetFriendly'] = 'true';
     }
 
-    // Persistir estado en SessionStorage
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(storageObj));
     }
@@ -221,9 +200,8 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     setShowCalendar(false);
     setShowDestinations(false);
     router.push(`/catalog?${params.toString()}`);
-  };
+  }, [location, capacity, dateRange, rentalType, maxPrice, isPetFriendly, router]);
 
-  // Limpiar todos los filtros activos
   const handleResetFilters = () => {
     setLocation('');
     setCapacity(1);
@@ -233,7 +211,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     const today = new Date();
     setDateRange([{ startDate: today, endDate: today, key: 'selection' }]);
 
-    // Borrar estado guardado
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(SEARCH_STORAGE_KEY);
     }
@@ -255,9 +232,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     location || capacity > 1 || hasActiveDates || rentalType || maxPrice || isPetFriendly
   );
 
-  // ==========================================
-  // RENDER: VARIANTE HERO
-  // ==========================================
   if (variant === 'hero') {
     return (
       <div className="relative w-full max-w-4xl">
@@ -369,7 +343,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
 
           <div className="hidden md:block w-[1px] h-8 bg-slate-200 dark:bg-slate-700" />
 
-          {/* Huéspedes y Acción */}
+          {/* Huéspedes */}
           <div className="w-full md:flex-[0.8] flex items-center justify-between px-4 md:pl-6 md:pr-2 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl md:rounded-full transition-colors">
             <div className="flex flex-col justify-center">
               <span className="text-[11px] font-bold uppercase text-slate-800 dark:text-slate-300 tracking-wider text-left mb-1">Huéspedes</span>
@@ -409,9 +383,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     );
   }
 
-  // ==========================================
-  // RENDER: VARIANTE CATALOG
-  // ==========================================
   return (
     <div className="w-full max-w-[1100px] mx-auto mb-8">
       <form
@@ -540,7 +511,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
           )}
         </button>
 
-        {/* Botón Restablecer Filtros (Visible cuando hay filtros activos) */}
+        {/* Botón Restablecer Filtros */}
         {hasActiveFilters && (
           <button
             type="button"
@@ -562,7 +533,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
         </button>
       </form>
 
-      {/* MODAL DE FILTROS AVANZADOS */}
+      {/* Modal Filtros Avanzados */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-surface border border-subtle rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
