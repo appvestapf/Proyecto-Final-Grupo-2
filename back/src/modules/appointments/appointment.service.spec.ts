@@ -61,6 +61,19 @@ describe('AppointmentService', () => {
     service = module.get<AppointmentService>(AppointmentService);
   });
 
+  describe('findAllByUser', () => {
+    it('incluye la propiedad de cada cita', async () => {
+      appointmentsRepository.find.mockResolvedValue([]);
+
+      await service.findAllByUser('user-1');
+
+      expect(appointmentsRepository.find).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        relations: { property: true },
+      });
+    });
+  });
+
   describe('createAppointment', () => {
     it('rechaza una fecha que no es futura', async () => {
       await expect(
