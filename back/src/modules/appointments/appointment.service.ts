@@ -75,7 +75,7 @@ export class AppointmentService {
     }
 
     findAllByUser(userId: string) {
-        return this.appointmentsRepository.find({ where: { userId } });
+        return this.appointmentsRepository.find({ where: { userId }, relations: { property: true } });
     }
 
     findAllAdmin() {
