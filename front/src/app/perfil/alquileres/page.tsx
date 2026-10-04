@@ -3,13 +3,52 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { MapPin, Clock, CheckCircle2, Loader2, CalendarHeart, Ban, XCircle } from 'lucide-react';
+import { 
+  MapPin, 
+  Clock, 
+  CheckCircle2, 
+  CalendarHeart, 
+  Ban, 
+  XCircle, 
+  AlertTriangle, 
+  Receipt, 
+  Key, 
+  ShieldCheck, 
+  X,
+  Calendar
+} from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { reservationService } from '@/services/reservationService';
 import { appointmentService } from '@/services/appointmentService';
 import { toast } from 'sonner';
 import PaymentButton from '@/components/property/PaymentButton';
+
+// Componente Skeleton Loader para evitar flashes visuales
+function RentalSkeletonList() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {[1, 2, 3].map((item) => (
+        <div key={item} className="bg-surface border border-subtle rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6">
+          <div className="w-full md:w-48 h-48 md:h-36 rounded-xl bg-muted/20 shrink-0" />
+          <div className="flex-1 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="h-6 bg-muted/20 rounded-md w-1/3" />
+                <div className="h-6 bg-muted/20 rounded-full w-24" />
+              </div>
+              <div className="h-4 bg-muted/20 rounded-md w-1/2" />
+            </div>
+            <div className="flex justify-between items-end pt-4 border-t border-subtle">
+              <div className="h-6 bg-muted/20 rounded-md w-28" />
+              <div className="h-9 bg-muted/20 rounded-xl w-32" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function MisAlquileresPage() {
   const router = useRouter();
@@ -21,7 +60,29 @@ export default function MisAlquileresPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true); 
   const [cancellingReservationId, setCancellingReservationId] = useState<string | null>(null);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
+
+  // Estado para el modal de comprobante / detalles
+  const [receiptModal, setReceiptModal] = useState<{
+    isOpen: boolean;
+    reserva: any | null;
+  }>({
+    isOpen: false,
+    reserva: null,
+  });
   
+  // Estado para el modal de confirmación de cancelación
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'reserva' | 'visita';
+    id: string | null;
+    title: string;
+  }>({
+    isOpen: false,
+    type: 'reserva',
+    id: null,
+    title: '',
+  });
+
   const { token, isAuthenticated } = useAuthStore();
 
   const loadData = async () => {
@@ -31,8 +92,21 @@ export default function MisAlquileresPage() {
         reservationService.getMyReservations(token),
         appointmentService.getMyAppointments(token)
       ]);
-      setReservas(resData);
-      setVisitas(visData);
+
+      const sortedReservas = (resData || []).sort((a: any, b: any) => {
+      const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
+      const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
+      return dateB - dateA;
+    });
+
+      const sortedVisitas = (visData || []).sort((a: any, b: any) => {
+      const dateA = new Date(a.createdAt || a.date || 0).getTime();
+      const dateB = new Date(b.createdAt || b.date || 0).getTime();
+      return dateB - dateA;
+    });
+    
+      setReservas(sortedReservas);
+      setVisitas(sortedVisitas);
     } catch (error) {
       console.error("Error cargando el panel:", error);
     } finally {
@@ -59,46 +133,58 @@ export default function MisAlquileresPage() {
     }
   }, [token, isCheckingAuth]);
 
-  const handleCancelReservation = async (reservationId: string) => {
-    if (!token) return;
-    if (!window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) return;
+  const openCancelModal = (type: 'reserva' | 'visita', id: string, title: string) => {
+    setConfirmModal({
+      isOpen: true,
+      type,
+      id,
+      title,
+    });
+  };
 
-    setCancellingReservationId(reservationId);
-    try {
-      await reservationService.cancelReservation(reservationId, token);
-      toast.success('Reserva cancelada correctamente');
-      await loadData();
-    } catch (error: any) {
-      toast.error(error.message || 'No se pudo cancelar la reserva');
-    } finally {
-      setCancellingReservationId(null);
+  const closeCancelModal = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!token || !confirmModal.id) return;
+
+    const { type, id } = confirmModal;
+    closeCancelModal();
+
+    if (type === 'reserva') {
+      setCancellingReservationId(id);
+      try {
+        await reservationService.cancelReservation(id, token);
+        toast.success('Reserva cancelada correctamente');
+        await loadData();
+      } catch (error: any) {
+        toast.error(error.message || 'No se pudo cancelar la reserva');
+      } finally {
+        setCancellingReservationId(null);
+      }
+    } else {
+      setCancellingAppointmentId(id);
+      try {
+        await appointmentService.cancelAppointment(id, token);
+        toast.success('Visita presencial cancelada correctamente');
+        await loadData();
+      } catch (error: any) {
+        toast.error(error.message || 'No se pudo cancelar la visita');
+      } finally {
+        setCancellingAppointmentId(null);
+      }
     }
   };
 
-  const handleCancelAppointment = async (appointmentId: string) => {
-    if (!token) return;
-    if (!window.confirm('¿Estás seguro de que deseas cancelar esta visita?')) return;
-
-    setCancellingAppointmentId(appointmentId);
-    try {
-      await appointmentService.cancelAppointment(appointmentId, token);
-      toast.success('Visita cancelada correctamente');
-      await loadData();
-    } catch (error: any) {
-      toast.error(error.message || 'No se pudo cancelar la visita');
-    } finally {
-      setCancellingAppointmentId(null);
-    }
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   };
-
-  if (isCheckingAuth || loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4 text-muted transition-colors duration-200">
-        <Loader2 className="animate-spin text-primary" size={40} />
-        <p className="text-sm font-medium">{isCheckingAuth ? "Verificando acceso..." : "Cargando tu información..."}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -134,12 +220,14 @@ export default function MisAlquileresPage() {
         </button>
       </div>
 
-      {activeTab === 'reservas' && (
+      {isCheckingAuth || loading ? (
+        <RentalSkeletonList />
+      ) : activeTab === 'reservas' ? (
         <div className="space-y-6">
           {reservas.length === 0 ? (
             <div className="text-center py-20 bg-surface rounded-2xl border border-subtle shadow-sm">
               <p className="text-muted font-medium">Aún no tienes reservas registradas.</p>
-              <Button variant="outline" className="mt-4" onClick={() => router.push('/catalog')}>
+              <Button variant="outline" className="mt-4 cursor-pointer" onClick={() => router.push('/catalog')}>
                 Explorar propiedades
               </Button>
             </div>
@@ -147,11 +235,14 @@ export default function MisAlquileresPage() {
             reservas.map((reserva) => {
               const propertyName = reserva.property?.title || reserva.property?.name || 'Propiedad';
               const propertyImage = reserva.property?.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9";
+              const isCancelled = reserva.status === 'cancelled';
 
               return (
                 <div 
                   key={reserva.id} 
-                  className="bg-surface border border-subtle rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-all"
+                  className={`bg-surface border border-subtle rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6 transition-all ${
+                    isCancelled ? 'opacity-60 grayscale-[25%]' : 'hover:shadow-md'
+                  }`}
                 >
                   <div className="relative w-full md:w-48 h-48 md:h-auto rounded-xl overflow-hidden shrink-0 bg-app">
                     <Image 
@@ -169,13 +260,13 @@ export default function MisAlquileresPage() {
                         <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1 ${
                           reserva.status === 'confirmed' 
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
-                            : reserva.status === 'cancelled'
+                            : isCancelled
                             ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                             : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                         }`}>
                           {reserva.status === 'confirmed' ? (
                             <CheckCircle2 size={14} />
-                          ) : reserva.status === 'cancelled' ? (
+                          ) : isCancelled ? (
                             <XCircle size={14} />
                           ) : (
                             <Clock size={14} />
@@ -186,14 +277,39 @@ export default function MisAlquileresPage() {
                       <p className="text-sm text-muted flex items-center gap-2 mb-4">
                         <MapPin size={16} /> {reserva.property?.location || `${reserva.property?.city || ''}, ${reserva.property?.country || ''}`}
                       </p>
+
+                      {/* Periodo de Reserva */}
+                      {(reserva.startDate || reserva.endDate) && (
+                        <div className="inline-flex items-center gap-2 bg-app/60 px-3 py-2 rounded-xl border border-subtle text-xs text-main font-medium">
+                          <Calendar size={14} className="text-primary" />
+                          <span>{formatDate(reserva.startDate)}</span>
+                          <span className="text-muted">→</span>
+                          <span>{formatDate(reserva.endDate)}</span>
+                          {reserva.nights && <span className="text-muted text-xs">({reserva.nights} noches)</span>}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-end justify-between mt-6 pt-4 border-t border-subtle gap-4">
-                      <p className="text-lg font-bold text-main">
-                        US$ {reserva.totalPrice || reserva.property?.price}
-                      </p>
+                      <div>
+                        <p className="text-xs text-muted uppercase font-semibold">Monto Total</p>
+                        <p className="text-lg font-bold text-main">
+                          US$ {reserva.totalPrice || reserva.property?.price}
+                        </p>
+                      </div>
                       
                       <div className="flex items-center gap-3">
+                        {reserva.status === 'confirmed' && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setReceiptModal({ isOpen: true, reserva })}
+                            className="flex items-center gap-2 text-xs py-2 px-3 rounded-xl border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+                          >
+                            <Receipt size={14} />
+                            Ver Comprobante
+                          </Button>
+                        )}
+
                         {reserva.status === 'pending' && (
                           <>
                             <PaymentButton 
@@ -202,15 +318,11 @@ export default function MisAlquileresPage() {
                             />
                             <Button
                               variant="outline"
-                              onClick={() => handleCancelReservation(reserva.id)}
+                              onClick={() => openCancelModal('reserva', reserva.id, propertyName)}
                               disabled={cancellingReservationId === reserva.id}
-                              className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 flex items-center gap-1 text-xs py-2 px-3 rounded-xl"
+                              className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 flex items-center gap-1 text-xs py-2 px-3 rounded-xl cursor-pointer"
                             >
-                              {cancellingReservationId === reserva.id ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
-                                <Ban size={14} />
-                              )}
+                              <Ban size={14} />
                               Cancelar
                             </Button>
                           </>
@@ -223,14 +335,12 @@ export default function MisAlquileresPage() {
             })
           )}
         </div>
-      )}
-
-      {activeTab === 'visitas' && (
+      ) : (
         <div className="space-y-6">
           {visitas.length === 0 ? (
             <div className="text-center py-20 bg-surface rounded-2xl border border-subtle shadow-sm">
               <p className="text-muted font-medium">No tienes visitas presenciales agendadas.</p>
-              <Button variant="outline" className="mt-4" onClick={() => router.push('/catalog')}>
+              <Button variant="outline" className="mt-4 cursor-pointer" onClick={() => router.push('/catalog')}>
                 Agendar una visita
               </Button>
             </div>
@@ -238,11 +348,14 @@ export default function MisAlquileresPage() {
             visitas.map((visita) => {
               const propertyName = visita.property?.title || visita.property?.name || 'Propiedad';
               const propertyImage = visita.property?.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9";
+              const isCancelled = visita.status === 'cancelled';
 
               return (
                 <div 
                   key={visita.id} 
-                  className="bg-surface border border-subtle rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-all"
+                  className={`bg-surface border border-subtle rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-6 transition-all ${
+                    isCancelled ? 'opacity-60 grayscale-[25%]' : 'hover:shadow-md'
+                  }`}
                 >
                   <div className="relative w-full md:w-32 h-32 md:h-auto rounded-xl overflow-hidden shrink-0 bg-app">
                     <Image 
@@ -260,13 +373,13 @@ export default function MisAlquileresPage() {
                         <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1 ${
                           visita.status === 'confirmed' 
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
-                            : visita.status === 'cancelled'
+                            : isCancelled
                             ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                             : 'bg-primary/10 text-primary border border-primary/20'
                         }`}>
                           {visita.status === 'confirmed' ? (
                             <CheckCircle2 size={14} />
-                          ) : visita.status === 'cancelled' ? (
+                          ) : isCancelled ? (
                             <XCircle size={14} />
                           ) : (
                             <CalendarHeart size={14} />
@@ -289,18 +402,14 @@ export default function MisAlquileresPage() {
                         </p>
                       </div>
 
-                      {visita.status !== 'cancelled' && (
+                      {!isCancelled && (
                         <Button
                           variant="outline"
-                          onClick={() => handleCancelAppointment(visita.id)}
+                          onClick={() => openCancelModal('visita', visita.id, propertyName)}
                           disabled={cancellingAppointmentId === visita.id}
-                          className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 flex items-center gap-1 text-xs py-2 px-3 rounded-xl"
+                          className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30 flex items-center gap-1 text-xs py-2 px-3 rounded-xl cursor-pointer"
                         >
-                          {cancellingAppointmentId === visita.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Ban size={14} />
-                          )}
+                          <Ban size={14} />
                           Cancelar visita
                         </Button>
                       )}
@@ -310,6 +419,117 @@ export default function MisAlquileresPage() {
               );
             })
           )}
+        </div>
+      )}
+
+      {/* Modal de Cancelación Directo */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-surface border border-subtle rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl shrink-0 border border-rose-500/20">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-main">
+                  Cancelar {confirmModal.type === 'reserva' ? 'Reserva' : 'Visita Presencial'}
+                </h3>
+                <p className="text-sm text-muted">
+                  ¿Estás seguro de que deseas cancelar la {confirmModal.type} para <span className="font-semibold text-main">{confirmModal.title}</span>? Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-subtle">
+              <Button
+                variant="outline"
+                onClick={closeCancelModal}
+                className="rounded-xl text-xs py-2 px-4 cursor-pointer"
+              >
+                Volver
+              </Button>
+              <Button
+                onClick={handleConfirmCancel}
+                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs py-2 px-4 font-medium transition-colors cursor-pointer"
+              >
+                Sí, cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Comprobante / Detalles del Alquiler */}
+      {receiptModal.isOpen && receiptModal.reserva && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface border border-subtle rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 relative">
+            
+            <button 
+              onClick={() => setReceiptModal({ isOpen: false, reserva: null })}
+              className="absolute top-4 right-4 text-muted hover:text-main p-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-subtle pb-4">
+              <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-emerald-500/20">
+                <Receipt size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-main">Comprobante de Reserva</h3>
+                <p className="text-xs text-muted">ID Reserva: #{receiptModal.reserva.id?.slice(-8)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-app/60 border border-subtle rounded-xl space-y-2">
+                <p className="text-xs font-semibold uppercase text-muted">Propiedad Alquilada</p>
+                <p className="text-base font-bold text-main">
+                  {receiptModal.reserva.property?.title || 'Propiedad en Vesta'}
+                </p>
+                <p className="text-xs text-muted flex items-center gap-1">
+                  <MapPin size={14} /> {receiptModal.reserva.property?.location || 'Dirección no especificada'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-app/40 border border-subtle rounded-xl">
+                  <span className="text-muted block mb-1">Estado de Pago:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <ShieldCheck size={14} /> Mercado Pago (Aprobado)
+                  </span>
+                </div>
+                <div className="p-3 bg-app/40 border border-subtle rounded-xl">
+                  <span className="text-muted block mb-1">Monto Abonado:</span>
+                  <span className="text-main font-bold">
+                    US$ {receiptModal.reserva.totalPrice || receiptModal.reserva.property?.price}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+                <p className="text-xs font-bold uppercase text-primary flex items-center gap-1">
+                  <Key size={14} /> Instrucciones de Check-in
+                </p>
+                <p className="text-xs text-muted leading-relaxed">
+                  Presenta tu documento de identidad y este comprobante al momento del ingreso. El anfitrión te contactará vía correo para las llaves y detalles del ingreso.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button 
+                onClick={() => setReceiptModal({ isOpen: false, reserva: null })}
+                className="rounded-xl text-xs py-2 px-6 cursor-pointer"
+              >
+                Cerrar Comprobante
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
