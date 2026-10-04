@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Home, CreditCard, CalendarClock, ShieldCheck, Mail, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import { Home, CreditCard, CalendarClock, ShieldCheck, Mail, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 
 const CATEGORIES = [
@@ -38,14 +39,6 @@ export default function AyudaPage() {
             ¿En qué podemos ayudarte?
           </h1>
           
-          <div className="relative max-w-2xl mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
-            <input 
-              type="text" 
-              placeholder="Busca 'reembolso', 'agendar visita', 'mercadopago'..." 
-              className="w-full pl-12 pr-4 py-4 rounded-full bg-white text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-400/50 text-lg shadow-xl"
-            />
-          </div>
         </div>
       </section>
 
@@ -105,9 +98,11 @@ export default function AyudaPage() {
           </div>
           <h2 className="text-2xl font-bold text-main mb-4">¿No encontraste lo que buscabas?</h2>
           <p className="text-muted mb-8">Nuestro equipo de soporte está disponible para ayudarte con cualquier problema o duda sobre tus alquileres y propiedades.</p>
-          <Button variant="primary" className="rounded-full px-8 py-3">
-            Contactar a Soporte
-          </Button>
+          <Link href="/support/contact-support" passHref>
+            <Button variant="primary" className="rounded-full px-8 py-3">
+              Contactar a Soporte 
+            </Button>
+          </Link>
         </div>
       </section>
 
