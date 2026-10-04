@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Home, CreditCard, CalendarClock, ShieldCheck, Mail, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 
@@ -97,9 +98,11 @@ export default function AyudaPage() {
           </div>
           <h2 className="text-2xl font-bold text-main mb-4">¿No encontraste lo que buscabas?</h2>
           <p className="text-muted mb-8">Nuestro equipo de soporte está disponible para ayudarte con cualquier problema o duda sobre tus alquileres y propiedades.</p>
-          <Button variant="primary" className="rounded-full px-8 py-3">
-            Contactar a Soporte
-          </Button>
+          <Link href="/support/contact-support" passHref>
+            <Button variant="primary" className="rounded-full px-8 py-3">
+              Contactar a Soporte 
+            </Button>
+          </Link>
         </div>
       </section>
 
