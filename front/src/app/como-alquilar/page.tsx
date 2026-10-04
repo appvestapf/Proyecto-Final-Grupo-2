@@ -33,8 +33,6 @@ export default function ComoAlquilarArticlePage() {
             <nav className="flex items-center text-sm text-muted font-medium mb-6">
               <Link href="/" className="hover:text-primary transition-colors">Home</Link>
               <ChevronRight size={16} className="mx-1 opacity-50" />
-              <Link href="/ayuda" className="hover:text-primary transition-colors">Guías</Link>
-              <ChevronRight size={16} className="mx-1 opacity-50" />
               <span className="text-main">Cómo alquilar</span>
             </nav>
 
