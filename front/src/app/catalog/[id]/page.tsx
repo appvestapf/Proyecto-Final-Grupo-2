@@ -1,25 +1,43 @@
 "use client";
 
-import { useState, useEffect, use, useRef } from 'react';
+import { useState, useEffect, use, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
-import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock } from 'lucide-react';
+import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 
 // Importaciones del Calendario
-import { DateRange } from 'react-date-range';
+import { DateRange, Range } from 'react-date-range';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css'; 
 
-export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+// Importación dinámica de PropertyDetailMap deshabilitando SSR para Mapbox
+const PropertyDetailMap = dynamic(
+  () => import('@/components/property/PropertyDetailMap/PropertyDetailMap').then((mod) => mod.PropertyDetailMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[380px] bg-surface rounded-2xl animate-pulse border border-subtle flex items-center justify-center text-muted text-sm">
+        Cargando mapa de ubicación...
+      </div>
+    ),
+  }
+);
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function PropertyDetailPage({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = use(params);
   const { token, isAuthenticated } = useAuthStore();
@@ -32,7 +50,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   // Estados para reservas con react-date-range
   const [showCalendar, setShowCalendar] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
-  const [dateRange, setDateRange] = useState([
+  const [dateRange, setDateRange] = useState<Range[]>([
     {
       startDate: new Date(),
       endDate: new Date(),
@@ -48,13 +66,19 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     const fetchProperty = async () => {
-      const data = await propertyService.getPropertyById(resolvedParams.id);
-      if (!data) {
+      try {
+        const data = await propertyService.getPropertyById(resolvedParams.id);
+        if (!data) {
+          router.push('/catalog');
+        } else {
+          setProperty(data);
+        }
+      } catch (error) {
+        toast.error('Error al cargar la propiedad');
         router.push('/catalog');
-      } else {
-        setProperty(data);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchProperty();
   }, [resolvedParams.id, router]);
@@ -81,11 +105,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Nueva lógica matemática para leer fechas de la librería
+  // Conversión numérica y segura de las coordenadas
+  const lat = property ? Number(property.lat) : 0;
+  const lng = property ? Number(property.lng) : 0;
+
+  // Cálculo de noches para alquileres temporarios
   const calculateNights = () => {
     const start = dateRange[0].startDate;
     const end = dateRange[0].endDate;
-    if (start.getTime() === end.getTime()) return 0;
+    if (!start || !end || start.getTime() === end.getTime()) return 0;
     
     const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -142,7 +170,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     }
 
     if (property?.rentalType === 'Temporario') {
-      if (dateRange[0].startDate.getTime() === dateRange[0].endDate.getTime()) {
+      const start = dateRange[0].startDate;
+      const end = dateRange[0].endDate;
+      if (!start || !end || start.getTime() === end.getTime()) {
         toast.error('Por favor selecciona un rango de fechas válido');
         return;
       }
@@ -153,9 +183,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
-      const payload: any = { propertyId: property?.id };
+      const payload: Record<string, any> = { propertyId: property?.id };
       
-      if (property?.rentalType === 'Temporario') {
+      if (property?.rentalType === 'Temporario' && dateRange[0].startDate && dateRange[0].endDate) {
         payload.startDate = format(dateRange[0].startDate, 'yyyy-MM-dd');
         payload.endDate = format(dateRange[0].endDate, 'yyyy-MM-dd');
       }
@@ -208,6 +238,10 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   if (!property) return null;
 
+  const startDate = dateRange[0].startDate;
+  const endDate = dateRange[0].endDate;
+  const hasValidRange = startDate && endDate && startDate.getTime() !== endDate.getTime();
+
   return (
     <>
       {showGallery && (
@@ -239,6 +273,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       )}
 
       <main className="w-full bg-app pb-24 transition-colors duration-200">
+        {/* Galería de Portada */}
         <div className="relative w-full h-[40vh] md:h-[55vh] flex overflow-hidden">
           <div className="relative w-1/2 h-full border-r-4 border-app">
             <Image src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={property.title} fill className="object-cover" priority />
@@ -294,9 +329,31 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
               </div>
+
+              <hr className="border-t border-subtle mb-8" />
+
+              {/* SECCIÓN DE UBICACIÓN Y MAPA */}
+              {!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && (
+                <div className="mb-10">
+                  <h3 className="text-2xl font-bold text-main mb-3 tracking-tight flex items-center gap-2">
+                    <MapPin className="text-primary" size={24} />
+                    Ubicación
+                  </h3>
+                  <p className="text-muted text-base mb-6">
+                    {property.location}
+                  </p>
+                  <PropertyDetailMap 
+                    lat={lat}
+                    lng={lng}
+                    title={property.title}
+                    isExactLocationVisible={false}
+                    radiusInMeters={350}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* CAJA LATERAL FLOTANTE (Con mejoras para Modo Oscuro) */}
+            {/* CAJA LATERAL FLOTANTE */}
             <div className="w-full lg:w-[400px]">
               <div className="sticky top-24 space-y-6">
                 <div className="bg-surface border border-subtle rounded-3xl p-6 shadow-xl dark:shadow-none transition-colors duration-200">
@@ -307,7 +364,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                   </div>
 
-                  {/* NUEVO CALENDARIO (react-date-range) */}
+                  {/* CALENDARIO DE RESERVAS */}
                   {property.rentalType === 'Temporario' && (
                     <div ref={calRef} className="relative mb-6">
                       <div 
@@ -316,15 +373,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       >
                         <div className="flex-1 flex flex-col justify-center px-2">
                           <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Llegada</label>
-                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
-                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].startDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          <span className={`text-sm font-semibold truncate ${hasValidRange ? 'text-main' : 'text-muted'}`}>
+                            {hasValidRange && startDate ? format(startDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
                           </span>
                         </div>
                         <div className="w-[1px] bg-subtle my-1" />
                         <div className="flex-1 flex flex-col justify-center px-4">
                           <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Salida</label>
-                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
-                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].endDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          <span className={`text-sm font-semibold truncate ${hasValidRange ? 'text-main' : 'text-muted'}`}>
+                            {hasValidRange && endDate ? format(endDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
                           </span>
                         </div>
                       </div>
@@ -334,13 +391,13 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                         <div className="absolute top-full right-0 mt-2 bg-white rounded-3xl shadow-xl overflow-hidden z-50 border border-slate-200 text-slate-900" onClick={(e) => e.stopPropagation()}>
                           <DateRange
                             ranges={dateRange}
-                            onChange={(item: any) => setDateRange([item.selection])}
+                            onChange={(item) => setDateRange([item.selection])}
                             minDate={new Date()}
-                            months={1} // Mostramos 1 mes para que entre perfecto en la tarjeta
+                            months={1}
                             direction="horizontal"
                             locale={es}
                             showDateDisplay={false}
-                            rangeColors={['#0055FF']} // Azul Vesta
+                            rangeColors={['#0055FF']}
                           />
                         </div>
                       )}
