@@ -34,6 +34,7 @@ describe('AuthService', () => {
       name: 'Juan',
       password: await bcrypt.hash(correctPassword, 10),
       isAdmin: false,
+      isActive: true,
       pfp: null,
       lockedUntil: null,
       failedLoginAttempts: 0,
@@ -61,7 +62,9 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: {
-            signAsync: jest.fn().mockResolvedValue('fake-token'),
+            signAsync: jest
+              .fn<() => Promise<string>>()
+              .mockResolvedValue('fake-token'),
           },
         },
         {
@@ -162,6 +165,15 @@ describe('AuthService', () => {
 
       expect(usersService.resetFailedLogins).toHaveBeenCalledWith(baseUser);
       expect(result.access_token).toBe('fake-token');
+    });
+
+    it('rechaza si la cuenta fue dada de baja', async () => {
+      const inactiveUser = { ...baseUser, isActive: false };
+      usersService.findByEmail.mockResolvedValue(inactiveUser as any);
+
+      await expect(
+        service.login({ email: inactiveUser.email, password: correctPassword }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
