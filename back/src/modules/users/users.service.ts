@@ -80,6 +80,8 @@ export class UsersService {
     user.password = newPassword;
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
     return this.usersRepository.save(user);
   }
 
