@@ -55,7 +55,7 @@ function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     window.location.href = `${apiUrl}/auth/google`;
   };
 
