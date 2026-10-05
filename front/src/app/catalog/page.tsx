@@ -50,7 +50,12 @@ function CatalogContent() {
 
         const rentalType = searchParams.get('rentalType') || undefined;
         const maxPriceParam = searchParams.get('maxPrice');
-        const maxPrice = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
+        const maxPriceVal = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
+
+        // Solo enviamos maxPrice si existe rentalType definido (regla Backend)
+        const maxPrice = (rentalType && maxPriceVal && !isNaN(maxPriceVal)) ? maxPriceVal : undefined;
+        const priceUnit = maxPrice ? (rentalType === 'Temporario' ? 'noche' : 'mes') : undefined;
+
         const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
         const isPetFriendly = isPetFriendlyParam === 'true' ? true : undefined;
 
@@ -64,7 +69,8 @@ function CatalogContent() {
           endDate,
           capacity: capacity && !isNaN(capacity) ? capacity : undefined,
           rentalType,
-          maxPrice: maxPrice && !isNaN(maxPrice) ? maxPrice : undefined,
+          maxPrice,
+          priceUnit,
           isPetFriendly,
           ...(latParam && lngParam ? {
             lat: parseFloat(latParam),
@@ -86,17 +92,13 @@ function CatalogContent() {
     loadProperties();
   }, [searchParams]);
 
-  // Filtro defensivo de respaldo en el cliente
+  // Filtro defensivo de respaldo en el cliente (Sin filtro de precio para dejar trabajar al Backend)
   const filteredProperties = useMemo(() => {
     const rentalType = searchParams.get('rentalType');
-    const maxPrice = searchParams.get('maxPrice');
     const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
 
     return properties.filter(p => {
       if (rentalType && p.rentalType?.toLowerCase() !== rentalType.toLowerCase()) {
-        return false;
-      }
-      if (maxPrice && !isNaN(parseFloat(maxPrice)) && p.price > parseFloat(maxPrice)) {
         return false;
       }
       if (isPetFriendlyParam === 'true') {

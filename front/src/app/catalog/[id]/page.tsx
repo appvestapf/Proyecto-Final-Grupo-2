@@ -408,8 +408,12 @@ export default function PropertyDetailPage({ params }: PageProps) {
                 <div className="bg-surface border border-subtle rounded-3xl p-6 shadow-xl dark:shadow-none transition-colors duration-200">
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <span className="text-2xl font-bold text-main">US$ {property.price}</span>
-                      <span className="text-muted"> / {property.priceUnit}</span>
+                      <span className="text-2xl font-bold text-main">
+                        US$ {property.price?.toLocaleString("es-AR")}
+                      </span>
+                      <span className="text-muted">
+                        {" "}/ {property.priceUnit || (property.rentalType === 'Temporario' ? 'noche' : 'mes')}
+                      </span>
                     </div>
                   </div>
 
@@ -456,7 +460,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                   <div className="space-y-3 text-sm text-muted mb-6">
                     <div className="flex justify-between">
                       {property.rentalType === 'Temporario' ? (
-                        <span>US$ {property.price} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
+                        <span>US$ {property.price?.toLocaleString("es-AR")} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
                       ) : (
                         <span>Reserva residencial (1er mes)</span>
                       )}

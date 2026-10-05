@@ -179,14 +179,22 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
       storageObj['endDate'] = eFormatted;
     }
 
+    // --- CORRECCIÓN Petición Backend (priceUnit obligatorio con maxPrice) ---
     if (rentalType) {
       params.set('rentalType', rentalType);
       storageObj['rentalType'] = rentalType;
+
+      if (maxPrice) {
+        const priceUnit = rentalType === 'Temporario' ? 'noche' : 'mes';
+        params.set('maxPrice', maxPrice);
+        params.set('priceUnit', priceUnit);
+
+        storageObj['maxPrice'] = maxPrice;
+        storageObj['priceUnit'] = priceUnit;
+      }
     }
-    if (maxPrice) {
-      params.set('maxPrice', maxPrice);
-      storageObj['maxPrice'] = maxPrice;
-    }
+    // Nota: Si no hay rentalType, no enviamos maxPrice ni priceUnit para evitar el error 400 del backend.
+
     if (isPetFriendly) {
       params.set('isPetFriendly', 'true');
       storageObj['isPetFriendly'] = 'true';
