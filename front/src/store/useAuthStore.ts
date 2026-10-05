@@ -21,6 +21,7 @@ interface AuthState {
   register: (userData: RegisterData) => Promise<void>;
   setGoogleToken: (token: string) => Promise<void>;
   logout: () => void;
+  updateUserData: (data: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -152,6 +153,21 @@ export const useAuthStore = create<AuthState>()(
         authService.logout();
         set({ user: null, token: null, role: "visitante", isAuthenticated: false, userFavorites: [] });
       },
+    
+updateUserData: (data: Partial<User>) => {
+  const currentUser = get().user;
+  if (!currentUser) return;
+  
+  const updatedUser = { ...currentUser, ...data };
+  
+  // Actualiza el estado de Zustand
+  set({ user: updatedUser });
+  
+  // Actualiza el localStorage para que persista al recargar
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  }
+},
     }),
     {
       name: 'vesta-auth-storage',
