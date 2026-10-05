@@ -71,6 +71,27 @@ describe('UsersService', () => {
     });
   });
 
+  describe('resetPassword', () => {
+    it('limpia el bloqueo por intentos fallidos', async () => {
+      const user = {
+        id: 'user-1',
+        password: 'vieja',
+        resetPasswordToken: 'token',
+        resetPasswordExpires: new Date(),
+        failedLoginAttempts: 5,
+        lockedUntil: new Date(Date.now() + 10 * 60 * 1000),
+      };
+      usersRepository.save.mockImplementation((u: any) => Promise.resolve(u));
+
+      const result = await service.resetPassword(user as any, 'nueva');
+
+      expect(result.password).toBe('nueva');
+      expect(result.failedLoginAttempts).toBe(0);
+      expect(result.lockedUntil).toBeNull();
+      expect(result.resetPasswordToken).toBeNull();
+    });
+  });
+
   describe('remove', () => {
     it('hace borrado lógico (isActive = false)', async () => {
       const user = { id: 'user-1', isActive: true };

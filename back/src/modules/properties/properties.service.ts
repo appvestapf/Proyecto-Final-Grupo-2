@@ -225,7 +225,7 @@ export class PropertiesService {
 
   async findNearby(lat: number, lng: number, radiusKm: number) {
     const properties = await this.propertiesRepository.find({
-      where: { isDeleted: false },
+      where: { isDeleted: false, isAvailable: true },
     });
 
     return properties

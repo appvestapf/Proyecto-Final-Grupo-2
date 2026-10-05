@@ -106,6 +106,18 @@ describe('PropertiesService', () => {
     });
   });
 
+  describe('findNearby disponibilidad', () => {
+    it('no devuelve propiedades pausadas por el dueño', async () => {
+      propertiesRepository.find.mockResolvedValue([]);
+
+      await service.findNearby(-34.6037, -58.3816, 100);
+
+      expect(propertiesRepository.find).toHaveBeenCalledWith({
+        where: { isDeleted: false, isAvailable: true },
+      });
+    });
+  });
+
   describe('searchProperties', () => {
     it('sin lat/lng/radius devuelve el resultado de la query tal cual (sin distanceKm)', async () => {
       queryBuilder.getMany.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
