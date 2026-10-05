@@ -29,5 +29,48 @@ export const userService = {
 
     if (!response.ok) throw new Error('Error al subir la imagen');
     return await response.json(); 
+  },
+  async getAllUsers(token: string) {
+    // includeInactive=true le avisa al backend que mande también a los suspendidos
+    const response = await fetch(`${API_URL}/users?includeInactive=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Error al obtener usuarios');
+    return await response.json();
+  },
+
+  async banUser(userId: string, token: string) {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Error al suspender al usuario');
+    return await response.json();
+  },
+
+  async reactivateUser(userId: string, token: string) {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ isActive: true }),
+    });
+    if (!response.ok) throw new Error('Error al reactivar al usuario');
+    return await response.json();
+  },
+
+  async toggleAdminRole(userId: string, isAdmin: boolean, token: string) {
+    const response = await fetch(`${API_URL}/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ isAdmin }),
+    });
+    if (!response.ok) throw new Error('Error al cambiar el rol');
+    return await response.json();
   }
 };

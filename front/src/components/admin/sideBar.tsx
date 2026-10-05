@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Building2, ArrowLeft, Users } from "lucide-react";
 
 const MENU_ITEMS = [
   { 
@@ -14,6 +14,11 @@ const MENU_ITEMS = [
     icon: Building2, 
     path: "/admin/properties" 
   },
+  { 
+    name: "Usuarios", 
+    icon: Users, 
+    path: "/admin/users" 
+  }, 
 ];
 
 export default function Sidebar() {

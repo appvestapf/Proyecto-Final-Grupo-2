@@ -12,8 +12,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const checkAuth = setTimeout(() => {
-      if (!isAuthenticated || role !== "admin") {
+const checkAuth = setTimeout(() => {
+      if (!isAuthenticated || (role !== "admin" && role !== "superadmin")) {
         toast.error("Acceso denegado: Debes ser administrador para ver esta página.");
         router.push("/");
       } else {

@@ -6,7 +6,7 @@ export const NavItems = [
     id: 1,
     nameToRender: "Inicio",
     route: PATHROUTES.LANDING,
-    roles: ["visitante", "inquilino", "admin"],
+    roles: ["visitante", "inquilino", "admin", "superadmin"],
   },
 {
     id: 2,
@@ -28,6 +28,6 @@ export const NavItems = [
     id: 4,
     nameToRender: "Panel de Gestión", // Centraliza Métricas, CRUD, Reservas y Visitas
     route: PATHROUTES.DASHBOARD,
-    roles: ["admin"],
+    roles: ["admin", "superadmin"],
   },
 ];
