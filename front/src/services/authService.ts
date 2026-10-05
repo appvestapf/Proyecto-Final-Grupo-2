@@ -61,6 +61,41 @@ export const authService = {
     return data;
   },
 
+
+  
+  async forgotPassword(email: string): Promise<any> {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al procesar la solicitud');
+    }
+    return await response.json();
+  },
+
+  async resetPassword(data: { token: string; password: string; confirmPassword: string }): Promise<any> {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al restablecer la contraseña');
+    }
+    return await response.json();
+  },
+
+
+
+
+
+
   async getProfile(): Promise<any> {
       const token = this.getToken();  
       if (!token) {
