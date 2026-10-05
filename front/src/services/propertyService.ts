@@ -12,6 +12,7 @@ export interface PropertySearchParams {
   radius?: number;
   rentalType?: string;
   maxPrice?: number;
+  priceUnit?: string;
   isPetFriendly?: boolean;
 }
 
@@ -56,11 +57,14 @@ export const propertyService = {
         queryParams.append('maxPrice', params.maxPrice.toString());
       }
 
+      if (params.priceUnit?.trim()) {
+        queryParams.append('priceUnit', params.priceUnit.trim());
+      }
+
       if (typeof params.isPetFriendly === 'boolean') {
         queryParams.append('isPetFriendly', params.isPetFriendly.toString());
       }
 
-      // Sanitización y formato de coordenadas/radio
       if (
         typeof params.lat === 'number' && Number.isFinite(params.lat) &&
         typeof params.lng === 'number' && Number.isFinite(params.lng)
