@@ -6,6 +6,7 @@ export interface User {
   address: string;
   isAdmin: boolean;
   pfp?: string | null;
+  isSuperAdmin?: boolean; 
 }
 
 export interface LoginCredentials {
