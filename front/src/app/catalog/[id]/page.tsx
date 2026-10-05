@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, use, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, use, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { propertyService } from '@/services/propertyService';
@@ -14,7 +14,7 @@ import { Property } from '@/interfaces/property';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 
 // Importaciones del Calendario
-import { DateRange, Range } from 'react-date-range';
+import { DateRange, Range, RangeKeyDict } from 'react-date-range';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css'; 
@@ -37,8 +37,11 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9";
+
 export default function PropertyDetailPage({ params }: PageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const resolvedParams = use(params);
   const { token, isAuthenticated } = useAuthStore();
 
@@ -47,16 +50,31 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // Estados para reservas con react-date-range
+  // Estados para reservas con react-date-range e inicialización mediante Query Params
   const [showCalendar, setShowCalendar] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
-  const [dateRange, setDateRange] = useState<Range[]>([
-    {
+
+  const [dateRange, setDateRange] = useState<Range[]>(() => {
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+
+    if (startDateParam && endDateParam) {
+      const [sYear, sMonth, sDay] = startDateParam.split('-').map(Number);
+      const [eYear, eMonth, eDay] = endDateParam.split('-').map(Number);
+
+      return [{
+        startDate: new Date(sYear, sMonth - 1, sDay),
+        endDate: new Date(eYear, eMonth - 1, eDay),
+        key: 'selection'
+      }];
+    }
+
+    return [{
       startDate: new Date(),
       endDate: new Date(),
       key: 'selection'
-    }
-  ]);
+    }];
+  });
 
   // Estados para citas (Appointments)
   const [showAppointment, setShowAppointment] = useState(false);
@@ -83,14 +101,24 @@ export default function PropertyDetailPage({ params }: PageProps) {
     fetchProperty();
   }, [resolvedParams.id, router]);
 
+  // Manejo del scroll de fondo y tecla Escape para el modal de galería
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowGallery(false);
+      }
+    };
+
     if (showGallery) {
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
     } else {
       document.body.style.overflow = 'unset';
     }
+
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showGallery]);
 
@@ -104,6 +132,20 @@ export default function PropertyDetailPage({ params }: PageProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Manejar selección de fechas y actualización de Query Params
+  const handleDateSelect = (item: RangeKeyDict) => {
+    const selectedRange = item.selection;
+    setDateRange([selectedRange]);
+
+    if (selectedRange.startDate && selectedRange.endDate) {
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.set('startDate', format(selectedRange.startDate, 'yyyy-MM-dd'));
+      newParams.set('endDate', format(selectedRange.endDate, 'yyyy-MM-dd'));
+
+      router.replace(`/catalog/${resolvedParams.id}?${newParams.toString()}`, { scroll: false });
+    }
+  };
 
   // Conversión numérica y segura de las coordenadas
   const lat = property ? Number(property.lat) : 0;
@@ -127,7 +169,8 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const handleScheduleAppointment = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para agendar una visita');
-      router.push('/auth/login');
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
@@ -139,8 +182,9 @@ export default function PropertyDetailPage({ params }: PageProps) {
     setProcessingAppointment(true);
 
     try {
-      const dateTimeString = `${appointmentDate}T${appointmentTime}`;
-      const dateObj = new Date(dateTimeString);
+      const [year, month, day] = appointmentDate.split('-').map(Number);
+      const [hours, minutes] = appointmentTime.split(':').map(Number);
+      const dateObj = new Date(year, month - 1, day, hours, minutes);
 
       if (dateObj <= new Date()) {
         toast.error('La fecha y hora de la visita debe ser en el futuro');
@@ -165,7 +209,8 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const handleReservation = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para solicitar una reserva');
-      router.push('/auth/login');
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
@@ -238,6 +283,10 @@ export default function PropertyDetailPage({ params }: PageProps) {
 
   if (!property) return null;
 
+  const imagesList = property.images && property.images.length > 0 ? property.images : [DEFAULT_IMAGE];
+  const coverMainImage = imagesList[0];
+  const coverSecondaryImage = imagesList[1] || imagesList[0];
+
   const startDate = dateRange[0].startDate;
   const endDate = dateRange[0].endDate;
   const hasValidRange = startDate && endDate && startDate.getTime() !== endDate.getTime();
@@ -262,7 +311,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {property.images.map((img, idx) => (
+              {imagesList.map((img, idx) => (
                 <div key={idx} className={`relative w-full h-[300px] md:h-[450px] ${idx % 3 === 0 ? 'md:col-span-2 md:h-[600px]' : ''}`}>
                   <Image src={img} alt={`${property.title} - foto ${idx + 1}`} fill className="object-cover rounded-xl" />
                 </div>
@@ -276,14 +325,14 @@ export default function PropertyDetailPage({ params }: PageProps) {
         {/* Galería de Portada */}
         <div className="relative w-full h-[40vh] md:h-[55vh] flex overflow-hidden">
           <div className="relative w-1/2 h-full border-r-4 border-app">
-            <Image src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={property.title} fill className="object-cover" priority />
+            <Image src={coverMainImage} alt={property.title} fill className="object-cover" priority />
           </div>
           <div className="relative w-1/2 h-full">
-            <Image src={property.images[1] || property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={`${property.title} interior`} fill className="object-cover" priority />
+            <Image src={coverSecondaryImage} alt={`${property.title} interior`} fill className="object-cover" priority />
           </div>
           <div className="absolute bottom-6 right-6 z-10 flex gap-3">
             <button onClick={() => setShowGallery(true)} className="bg-surface px-4 py-2 text-sm font-semibold text-main rounded-[8px] shadow-md border border-subtle hover:bg-app cursor-pointer flex items-center gap-2 transition-colors">
-              Ver las {property.images.length} fotos
+              Ver las {imagesList.length} fotos
             </button>
           </div>
         </div>
@@ -391,7 +440,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                         <div className="absolute top-full right-0 mt-2 bg-white rounded-3xl shadow-xl overflow-hidden z-50 border border-slate-200 text-slate-900" onClick={(e) => e.stopPropagation()}>
                           <DateRange
                             ranges={dateRange}
-                            onChange={(item) => setDateRange([item.selection])}
+                            onChange={handleDateSelect}
                             minDate={new Date()}
                             months={1}
                             direction="horizontal"
