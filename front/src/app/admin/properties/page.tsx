@@ -34,7 +34,8 @@ export default function AdminPropertiesPage() {
   
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { token, role } = useAuthStore();
+ const { token, role, user: currentUser } = useAuthStore();
+ const isSuperAdmin = currentUser?.isSuperAdmin === true;
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
@@ -269,6 +270,8 @@ export default function AdminPropertiesPage() {
                     <th className="px-6 py-4">Ubicación</th>
                     <th className="px-6 py-4">Tipo</th>
                     <th className="px-6 py-4">Precio</th>
+                    {/* Nueva columna condicional para Super Admin */}
+                    {isSuperAdmin && <th className="px-6 py-4">Propietario</th>}
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
@@ -297,6 +300,25 @@ export default function AdminPropertiesPage() {
                       <td className="px-6 py-4 font-semibold text-(--text-main)">
                         US$ {property.price}
                       </td>
+
+                      {/* Celda del Propietario (Solo visible para Super Admin) */}
+                      {isSuperAdmin && (
+                        <td className="px-6 py-4">
+                          {property.owner?.id === currentUser?.id ? (
+                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                              Mi Propiedad
+                            </span>
+                          ) : property.owner ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-(--text-main)">{property.owner.name}</span>
+                              <span className="text-[10px] text-(--text-muted)">{property.owner.email}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs italic text-(--text-muted)">Vesta (Sistema)</span>
+                          )}
+                        </td>
+                      )}
+
                       <td className="px-6 py-4">
                         {property.isAvailable ? (
                           <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500">Disponible</span>
@@ -324,7 +346,7 @@ export default function AdminPropertiesPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div>         
           )}
         </div>
       )}

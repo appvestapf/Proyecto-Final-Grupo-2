@@ -49,3 +49,24 @@ export interface PropertyMapProps {
   showPopup?: boolean;
   simpleMarker?: boolean;
 }
+
+export interface Property extends BaseProperty {
+  title: string;
+  priceUnit: 'noche' | 'mes';
+  rentalType: 'Temporario' | 'Residencial';
+  rating: number;
+  area: number;
+  lat?: number;
+  lng?: number;
+  rooms: number;
+  bathrooms: number;
+  isPetFriendly: boolean;
+  hasGarage: boolean;
+  images: string[];
+  // Agrega esto:
+  owner?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
