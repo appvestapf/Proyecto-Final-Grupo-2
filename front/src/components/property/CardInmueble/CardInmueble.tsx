@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Property } from '@/interfaces/property';
 import { Badge } from '@/components/common/Badge/Badge';
@@ -5,10 +7,23 @@ import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButto
 import { Star, Bath, Bed, Tag } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9";
 
 export const CardInmueble = ({ data }: { data: Property }) => {
+  const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+
+  // Construimos la URL dinámica: si existen parámetros activos (fechas, ubicación, etc.), los adjuntamos
+  const detailHref = queryString
+    ? `/catalog/${data.id}?${queryString}`
+    : `/catalog/${data.id}`;
+
+  const coverImage = data.images && data.images.length > 0 ? data.images[0] : DEFAULT_IMAGE;
+
   return (
-    <Link href={`/catalog/${data.id}`} className="block w-full h-full">
+    <Link href={detailHref} className="block w-full h-full">
       <div className="w-full h-full bg-surface rounded-[12px] border border-subtle shadow-sm overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:-translate-y-1">
         
         {/* Contenedor de Imagen */}
@@ -23,8 +38,8 @@ export const CardInmueble = ({ data }: { data: Property }) => {
           </div>
 
           <Image 
-            src={data.images[0]} 
-            alt={data.name} 
+            src={coverImage} 
+            alt={data.name || data.title || "Inmueble"} 
             fill
             sizes="(max-width: 768px) 100vw, 320px"
             className="object-cover"
@@ -37,16 +52,19 @@ export const CardInmueble = ({ data }: { data: Property }) => {
             {/* Precio y Calificación */}
             <div className="flex justify-between items-center mb-2">
               <p className="font-bold text-xl text-main">
-                US$ {data.price} <span className="text-[15px] font-semibold text-muted">/ {data.priceUnit}</span>
+                US$ {data.price?.toLocaleString("es-AR")}{" "}
+                <span className="text-[15px] font-semibold text-muted">
+                  / {data.priceUnit || (data.rentalType === 'Temporario' ? 'noche' : 'mes')}
+                </span>
               </p>
               <div className="flex items-center gap-1 text-sm font-semibold text-main">
                 <Star className="w-4 h-4 text-accent fill-accent" />
-                <span>{data.rating}</span>
+                <span>{data.rating ?? 0}</span>
               </div>
             </div>
             
             {/* Título y Ubicación */}
-            <p className="font-medium text-main truncate mb-1">{data.name}</p>
+            <p className="font-medium text-main truncate mb-1">{data.name || data.title}</p>
             <p className="text-sm text-muted truncate mb-3">{data.location}</p>
           </div>
 

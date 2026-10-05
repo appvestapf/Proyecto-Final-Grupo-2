@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -11,6 +12,8 @@ import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
 import { User } from '../users/entities/user.entity';
 import { PropertySearchFilters } from './dto/propertySearchFilters.dto';
+import { ReservationStatus } from '../reservations/enums/reservation-status.enum';
+import { PropertySearchDto } from './dto/property-search.dto';
 
 @Injectable()
 export class PropertiesService {
@@ -52,27 +55,140 @@ export class PropertiesService {
     return properties;
   }
 
-  async findAllAdmin(country?: string, city?: string, page?: string) {
+  async searchProperties(filters: PropertySearchDto) {
+    const {
+      keyword,
+      startDate,
+      endDate,
+      capacity,
+      rentalType,
+      priceUnit,
+      maxPrice,
+      isPetFriendly,
+      lat,
+      lng,
+      radius,
+    } = filters;
+    const query = this.propertiesRepository
+      .createQueryBuilder('property')
+      .where('property.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('property.isAvailable = :isAvailable', { isAvailable: true });
+    if (keyword) {
+      query.andWhere(
+        `(LOWER(unaccent(property.city))LIKE LOWER (unaccent(:keyword))
+        OR LOWER(unaccent(property.country))LIKE LOWER(unaccent(:keyword))
+        OR LOWER(unaccent(property.name))LIKE LOWER(unaccent(:keyword)))`,
+        {
+          keyword: `%${keyword}%`,
+        },
+      );
+    }
+    if (capacity !== undefined) {
+      query.andWhere('property.capacity>=:capacity', { capacity });
+    }
+    if (rentalType) {
+      query.andWhere('LOWER(property.rentalType)=LOWER(:rentalType)', {
+        rentalType,
+      });
+    }
+    if (isPetFriendly !== undefined) {
+      query.andWhere('property.isPetFriendly=:isPetFriendly', {
+        isPetFriendly,
+      });
+    }
+    if (maxPrice !== undefined) {
+      if (!priceUnit) {
+        throw new BadRequestException(
+          'Para filtrar por precio máximo debes indicar la unidad de precio (noche o mes)',
+        );
+      }
+      query.andWhere(
+        'property.price<=:maxPrice AND property.priceUnit=:priceUnit',
+        { maxPrice, priceUnit },
+      );
+    }
+    if ((startDate && !endDate) || (!startDate && endDate)) {
+      throw new BadRequestException(
+        'Para buscar por disponibilidad debes indicar fecha de inicio y fecha de finalización',
+      );
+    }
+    if (startDate && endDate) {
+      if (startDate >= endDate) {
+        throw new BadRequestException(
+          'La fecha de inicio debe ser anterior a la fecha de finalización',
+        );
+      }
+      query.andWhere(
+        `NOT EXISTS(
+          SELECT 1 FROM reservations reservation
+          WHERE reservation."propertyId" = property.id
+          AND reservation.status IN (:...reservationStatuses)
+          AND reservation."startDate" <= :endDate
+          AND reservation."endDate">=:startDate
+        )`,
+        {
+          reservationStatuses: [
+            ReservationStatus.PENDING,
+            ReservationStatus.CONFIRMED,
+          ],
+          startDate,
+          endDate,
+        },
+      );
+    }
+    query.orderBy('property.rating', 'DESC');
+    const properties = await query.getMany();
+
+    if (lat !== undefined && lng !== undefined && radius !== undefined) {
+      return properties
+        .map((property) => ({
+          ...property,
+          distanceKm: this.calculateDistanceKm(
+            lat,
+            lng,
+            property.lat,
+            property.lng,
+          ),
+        }))
+        .filter((property) => property.distanceKm <= radius)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    return properties;
+  }
+
+  async findAllAdmin(
+    country: string | undefined,
+    city: string | undefined,
+    page: string | undefined,
+    requester: { id: string; isSuperAdmin: boolean },
+  ) {
     const where: any = {};
 
-    if (country) {
-      where.country = country;
+    if (!requester.isSuperAdmin) {
+      where.owner = { id: requester.id };
     }
 
-    if (city) {
-      where.city = city;
-    }
+    if (country) where.country = country;
+    if (city) where.city = city;
 
     const pageNumber = page ? Number(page) : 1;
     const limit = 10;
 
     const properties = await this.propertiesRepository.find({
-      where: where,
+      where,
+      relations: { owner: true },
       skip: (pageNumber - 1) * limit,
       take: limit,
     });
 
-    return properties;
+    return properties.map(({ owner, ...property }) => ({
+      ...property,
+      owner: owner
+        ? { id: owner.id, name: owner.name, email: owner.email }
+        : null,
+      isMine: owner?.id === requester.id,
+    }));
   }
 
   async findOne(id: string) {
@@ -100,11 +216,11 @@ export class PropertiesService {
     id: string,
     updatePropertyDto: UpdatePropertyDto,
     requesterId: string,
-    isAdmin: boolean,
+    isSuperAdmin: boolean,
   ) {
     const property = await this.findOne(id);
 
-    if (property.owner?.id !== requesterId && !isAdmin) {
+    if (property.owner?.id !== requesterId && !isSuperAdmin) {
       throw new ForbiddenException(
         'No podés modificar una propiedad que no es tuya',
       );
@@ -115,17 +231,17 @@ export class PropertiesService {
     return this.propertiesRepository.save(property);
   }
 
- async remove(id: string, requesterId: string, isAdmin: boolean) {
+  async remove(id: string, requesterId: string, isSuperAdmin: boolean) {
     const property = await this.findOne(id);
 
-    if (property.owner?.id !== requesterId && !isAdmin) {
+    if (property.owner?.id !== requesterId && !isSuperAdmin) {
       throw new ForbiddenException(
         'No podés eliminar una propiedad que no es tuya',
       );
     }
     property.isDeleted = true;
-    property.isAvailable = false; 
-    
+    property.isAvailable = false;
+
     return this.propertiesRepository.save(property);
   }
 
@@ -155,7 +271,7 @@ export class PropertiesService {
 
   async findNearby(lat: number, lng: number, radiusKm: number) {
     const properties = await this.propertiesRepository.find({
-      where: { isDeleted: false },
+      where: { isDeleted: false, isAvailable: true },
     });
 
     return properties
@@ -217,59 +333,88 @@ export class PropertiesService {
     return { message: 'Propiedad eliminada de favoritos' };
   }
 
-  async searchForChatbot(filters: PropertySearchFilters){
-    const query= this.propertiesRepository.
-      createQueryBuilder('property').
-      where('property.isDeleted = :isDeleted', {isDeleted:false}).
-      andWhere('property.isAvailable = :isAvailable', {isAvailable:true})
-      if(filters.keyword){
-        query.andWhere('LOWER(unaccent(property.name)) LIKE LOWER(unaccent(:keyword))',{
-          keyword:`%${filters.keyword}%`,
-        })
-      }
-      if(filters.country){
-        query.andWhere('LOWER(unaccent(property.country))=LOWER(unaccent(:country))',{country:filters.country})
-      }
-      if(filters.city){
-        query.andWhere('LOWER(unaccent(property.city))= LOWER(unaccent(:city))',{city:filters.city})
-      }
-      if (filters.rentalType) {
-        query.andWhere('LOWER(property.rentalType) = LOWER(:rentalType)', {
+  async searchForChatbot(filters: PropertySearchFilters) {
+    const query = this.propertiesRepository
+      .createQueryBuilder('property')
+      .where('property.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('property.isAvailable = :isAvailable', { isAvailable: true });
+    if (filters.keyword) {
+      query.andWhere(
+        'LOWER(unaccent(property.name)) LIKE LOWER(unaccent(:keyword))',
+        {
+          keyword: `%${filters.keyword}%`,
+        },
+      );
+    }
+    if (filters.country) {
+      query.andWhere(
+        'LOWER(unaccent(property.country))=LOWER(unaccent(:country))',
+        { country: filters.country },
+      );
+    }
+    if (filters.city) {
+      query.andWhere('LOWER(unaccent(property.city))= LOWER(unaccent(:city))', {
+        city: filters.city,
+      });
+    }
+    if (filters.rentalType) {
+      query.andWhere('LOWER(property.rentalType) = LOWER(:rentalType)', {
         rentalType: filters.rentalType,
-        });
-      }
-      if(filters.priceUnit){
-        query.andWhere('LOWER(property.priceUnit)=LOWER(:priceUnit)',{priceUnit:filters.priceUnit})
-      }      
-      if(filters.minPrice!==undefined){
-        query.andWhere('property.price>=:minPrice',{minPrice:filters.minPrice})
-      }
-      if(filters.maxPrice!==undefined){
-        query.andWhere('property.price <= :maxPrice',{maxPrice:filters.maxPrice})
-      }
-      if(filters.maxTotalPrice!==undefined && filters.durationDays!== undefined){
-        query.andWhere('LOWER(property.priceUnit)=:priceUnit',{priceUnit:'noche'})
-        query.andWhere('property.price <= :maxPricePerUnit',{maxPricePerUnit:filters.maxTotalPrice/filters.durationDays})
-      }
-      if(filters.capacity!==undefined){
-        query.andWhere('property.capacity>=:capacity',{capacity:filters.capacity})
-      }
-      if(filters.rooms!==undefined){
-        query.andWhere('property.rooms>=:rooms',{rooms:filters.rooms})
-      }
-      if(filters.bathrooms!==undefined){
-        query.andWhere('property.bathrooms>=:bathrooms',{bathrooms:filters.bathrooms})
-      }
-      if(filters.isPetFriendly!==undefined){
-        query.andWhere('property.isPetFriendly = :isPetFriendly',{isPetFriendly: filters.isPetFriendly})
-      }
-      if(filters.hasGarage!==undefined){
-        query.andWhere('property.hasGarage=:hasGarage',{hasGarage:filters.hasGarage})
-      }
-      query.orderBy('property.rating','DESC')
-      query.take(10)
-      const properties = await query.getMany();
+      });
+    }
+    if (filters.priceUnit) {
+      query.andWhere('LOWER(property.priceUnit)=LOWER(:priceUnit)', {
+        priceUnit: filters.priceUnit,
+      });
+    }
+    if (filters.minPrice !== undefined) {
+      query.andWhere('property.price>=:minPrice', {
+        minPrice: filters.minPrice,
+      });
+    }
+    if (filters.maxPrice !== undefined) {
+      query.andWhere('property.price <= :maxPrice', {
+        maxPrice: filters.maxPrice,
+      });
+    }
+    if (
+      filters.maxTotalPrice !== undefined &&
+      filters.durationDays !== undefined
+    ) {
+      query.andWhere('LOWER(property.priceUnit)=:priceUnit', {
+        priceUnit: 'noche',
+      });
+      query.andWhere('property.price <= :maxPricePerUnit', {
+        maxPricePerUnit: filters.maxTotalPrice / filters.durationDays,
+      });
+    }
+    if (filters.capacity !== undefined) {
+      query.andWhere('property.capacity>=:capacity', {
+        capacity: filters.capacity,
+      });
+    }
+    if (filters.rooms !== undefined) {
+      query.andWhere('property.rooms>=:rooms', { rooms: filters.rooms });
+    }
+    if (filters.bathrooms !== undefined) {
+      query.andWhere('property.bathrooms>=:bathrooms', {
+        bathrooms: filters.bathrooms,
+      });
+    }
+    if (filters.isPetFriendly !== undefined) {
+      query.andWhere('property.isPetFriendly = :isPetFriendly', {
+        isPetFriendly: filters.isPetFriendly,
+      });
+    }
+    if (filters.hasGarage !== undefined) {
+      query.andWhere('property.hasGarage=:hasGarage', {
+        hasGarage: filters.hasGarage,
+      });
+    }
+    query.orderBy('property.rating', 'DESC');
+    query.take(10);
+    const properties = await query.getMany();
 
-      return properties;
+    return properties;
   }
 }

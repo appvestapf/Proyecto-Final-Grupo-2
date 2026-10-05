@@ -32,10 +32,10 @@ export default function AdminPropertiesPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingForm, setLoadingForm] = useState(false);
   
-  // Nuevo estado para saber si estamos editando y qué ID
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { token, role } = useAuthStore();
+ const { token, role, user: currentUser } = useAuthStore();
+ const isSuperAdmin = currentUser?.isSuperAdmin === true;
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
@@ -50,10 +50,9 @@ export default function AdminPropertiesPage() {
     } finally {
       setLoadingList(false);
     }
-  }, []); // Los corchetes vacíos aseguran que la función sea estable
+  }, []);
 
   useEffect(() => {
-    // Envolver la ejecución en una función async interna calma al linter
     const loadProperties = async () => {
       if (token && role === 'admin') {
         await fetchProperties();
@@ -73,17 +72,15 @@ export default function AdminPropertiesPage() {
     }
   };
 
-  // Limpiar el formulario y salir del modo edición
   const resetForm = () => {
     setFormData(DEFAULT_FORM_STATE);
     setFiles(null);
     setEditingId(null);
   };
 
-  // Cargar datos en el formulario para editar
   const handleEdit = (property: any) => {
     setFormData({
-      name: property.name || property.title, // Manejar si viene mapeado
+      name: property.name || property.title,
       description: property.description,
       country: property.country || property.location.split(', ')[1] || '',
       city: property.city || property.location.split(', ')[0] || '',
@@ -103,7 +100,6 @@ export default function AdminPropertiesPage() {
     setActiveTab('create');
   };
 
-  // Eliminar propiedad (Borrado Lógico)
   const handleDelete = async (id: string) => {
     if (!window.confirm('¿Estás seguro de que querés eliminar esta propiedad? (No se borrará el historial de reservas, solo dejará de estar visible)')) {
       return;
@@ -119,7 +115,7 @@ export default function AdminPropertiesPage() {
       if (!response.ok) throw new Error('Error al eliminar');
 
       toast.success('Propiedad eliminada correctamente');
-      fetchProperties(); // Recargar la lista
+      fetchProperties();
     } catch (error) {
       toast.error('No se pudo eliminar la propiedad');
     }
@@ -138,7 +134,6 @@ export default function AdminPropertiesPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       let uploadedImageUrls: string[] = [];
 
-      // Si hay archivos nuevos, los subimos
       if (files && files.length > 0) {
         const imageFormData = new FormData();
         for (let i = 0; i < files.length; i++) {
@@ -157,7 +152,6 @@ export default function AdminPropertiesPage() {
         uploadedImageUrls = uploadData.urls;
       }
 
-      // Preparar el payload
       const propertyPayload: any = {
         name: formData.name,
         description: formData.description,
@@ -176,16 +170,13 @@ export default function AdminPropertiesPage() {
         lng: Number(formData.lng),
       };
 
-      // Solo incluimos el array de imágenes si subimos fotos nuevas
       if (uploadedImageUrls.length > 0) {
         propertyPayload.images = uploadedImageUrls;
       }
 
-      // Decidir si es CREATE o UPDATE dependiendo de si hay editingId
       const method = editingId ? 'PATCH' : 'POST';
       const endpoint = editingId ? `${API_URL}/properties/${editingId}` : `${API_URL}/properties`;
       
-      // Si estamos creando, nos aseguramos de enviarla como disponible
       if (!editingId) {
         propertyPayload.isAvailable = true;
       }
@@ -222,33 +213,33 @@ export default function AdminPropertiesPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Gestión de Propiedades</h1>
-          <p className="text-slate-500 mt-1">Administra el catálogo completo de inmuebles.</p>
+          <h1 className="text-3xl font-bold text-(--text-main) tracking-tight">Gestión de Propiedades</h1>
+          <p className="text-(--text-muted) mt-1">Administra el catálogo completo de inmuebles.</p>
         </div>
         
-        <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm w-fit">
+        <div className="flex bg-(--bg-surface) rounded-lg p-1 border border-(--border-subtle) shadow-sm w-fit transition-colors duration-200">
           <button
             onClick={() => {
               setActiveTab('list');
-              resetForm(); // Limpiar si canceló la edición
+              resetForm();
             }}
             className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
               activeTab === 'list' 
-                ? 'bg-slate-100 text-slate-900 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-(--bg-app) text-(--text-main) shadow-sm' 
+                : 'text-(--text-muted) hover:text-(--text-main)'
             }`}
           >
             Catálogo Actual
           </button>
           <button
             onClick={() => {
-              resetForm(); // Asegurarnos de que el form esté vacío al pedir "Nuevo"
+              resetForm();
               setActiveTab('create');
             }}
             className={`px-4 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-2 ${
               activeTab === 'create' 
                 ? 'bg-primary text-white shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                : 'text-(--text-muted) hover:text-(--text-main)'
             }`}
           >
             <Plus size={16} /> Nueva Publicación
@@ -257,14 +248,14 @@ export default function AdminPropertiesPage() {
       </div>
 
       {activeTab === 'list' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-(--bg-surface) border border-(--border-subtle) rounded-2xl shadow-sm overflow-hidden transition-colors duration-200">
           {loadingList ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-              <Loader2 className="animate-spin mb-2" size={32} />
+            <div className="flex flex-col items-center justify-center h-64 text-(--text-muted)">
+              <Loader2 className="animate-spin mb-2 text-primary" size={32} />
               <p>Cargando inventario...</p>
             </div>
           ) : properties.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+            <div className="flex flex-col items-center justify-center h-64 text-(--text-muted)">
               <p>No hay propiedades registradas en el sistema.</p>
               <Button variant="outline" className="mt-4" onClick={() => setActiveTab('create')}>
                 Crear la primera
@@ -272,59 +263,80 @@ export default function AdminPropertiesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-slate-50 text-slate-900 uppercase font-semibold text-xs border-b border-slate-200">
+              <table className="w-full text-left text-sm text-(--text-muted)">
+                <thead className="bg-(--bg-app) text-(--text-main) uppercase font-semibold text-xs border-b border-(--border-subtle)">
                   <tr>
                     <th className="px-6 py-4">Inmueble</th>
                     <th className="px-6 py-4">Ubicación</th>
                     <th className="px-6 py-4">Tipo</th>
                     <th className="px-6 py-4">Precio</th>
+                    {/* Nueva columna condicional para Super Admin */}
+                    {isSuperAdmin && <th className="px-6 py-4">Propietario</th>}
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-(--border-subtle)">
                   {properties.map((property) => (
-                    <tr key={property.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={property.id} className="hover:bg-(--bg-app)/50 transition-colors">
                       <td className="px-6 py-4 flex items-center gap-4">
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-slate-200">
+                        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-(--bg-app)">
                           {property.images && property.images.length > 0 ? (
                             <Image src={property.images[0]} alt={property.title || property.name} fill className="object-cover" />
                           ) : (
-                            <span className="text-xs text-center flex h-full items-center justify-center text-slate-400">Sin foto</span>
+                            <span className="text-xs text-center flex h-full items-center justify-center text-(--text-muted)">Sin foto</span>
                           )}
                         </div>
-                        <span className="font-semibold text-slate-900 max-w-[200px] truncate block" title={property.title || property.name}>
+                        <span className="font-semibold text-(--text-main) max-w-[200px] truncate block" title={property.title || property.name}>
                           {property.title || property.name}
                         </span>
                       </td>
-                      <td className="px-6 py-4">{property.location || `${property.city}, ${property.country}`}</td>
+                      <td className="px-6 py-4 text-(--text-muted)">{property.location || `${property.city}, ${property.country}`}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
+                        <span className="px-2 py-1 bg-(--bg-app) text-(--text-main) rounded-md text-xs font-medium border border-(--border-subtle)">
                           {property.rentalType}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-900">
+                      <td className="px-6 py-4 font-semibold text-(--text-main)">
                         US$ {property.price}
                       </td>
+
+                      {/* Celda del Propietario (Solo visible para Super Admin) */}
+                      {isSuperAdmin && (
+                        <td className="px-6 py-4">
+                          {property.owner?.id === currentUser?.id ? (
+                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                              Mi Propiedad
+                            </span>
+                          ) : property.owner ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-(--text-main)">{property.owner.name}</span>
+                              <span className="text-[10px] text-(--text-muted)">{property.owner.email}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs italic text-(--text-muted)">Vesta (Sistema)</span>
+                          )}
+                        </td>
+                      )}
+
                       <td className="px-6 py-4">
                         {property.isAvailable ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Disponible</span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500">Disponible</span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">Reservada</span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-500">Reservada</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
                         <button 
                           onClick={() => handleEdit(property)}
-                          className="p-2 text-slate-400 hover:text-primary transition-colors cursor-pointer" 
+                          className="p-2 text-(--text-muted) hover:text-primary transition-colors cursor-pointer" 
                           title="Editar"
                         >
                           <Edit2 size={18} />
                         </button>
                         <button 
                           onClick={() => handleDelete(property.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer" 
+                          className="p-2 text-(--text-muted) hover:text-rose-500 transition-colors cursor-pointer" 
                           title="Eliminar"
                         >
                           <Trash2 size={18} />
@@ -334,18 +346,18 @@ export default function AdminPropertiesPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div>         
           )}
         </div>
       )}
 
       {activeTab === 'create' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm relative">
+        <div className="bg-(--bg-surface) border border-(--border-subtle) rounded-2xl p-8 shadow-sm relative transition-colors duration-200">
           
           {editingId && (
             <button 
               onClick={() => { resetForm(); setActiveTab('list'); }}
-              className="absolute top-8 right-8 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              className="absolute top-8 right-8 text-(--text-muted) hover:text-(--text-main) transition-colors cursor-pointer"
               title="Cancelar edición"
             >
               <X size={24} />
@@ -353,10 +365,10 @@ export default function AdminPropertiesPage() {
           )}
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-2xl font-bold text-(--text-main)">
               {editingId ? 'Editar Propiedad' : 'Publicar Nueva Propiedad'}
             </h2>
-            <p className="text-slate-500 mt-2 text-sm">
+            <p className="text-(--text-muted) mt-2 text-sm">
               {editingId 
                 ? 'Modifica los valores actuales. Si no subes nuevas imágenes, se conservarán las existentes.' 
                 : 'Completa los detalles y sube las imágenes para agregarla al catálogo de Vesta.'}
@@ -366,34 +378,34 @@ export default function AdminPropertiesPage() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Título de la publicación</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Loft luminoso en Palermo" />
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">Título de la publicación</label>
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-(--text-muted)" placeholder="Ej: Loft luminoso en Palermo" />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">País</label>
-                <input type="text" name="country" value={formData.country} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Argentina" />
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">País</label>
+                <input type="text" name="country" value={formData.country} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-(--text-muted)" placeholder="Ej: Argentina" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Ciudad</label>
-                <input type="text" name="city" value={formData.city} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: Buenos Aires" />
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">Ciudad</label>
+                <input type="text" name="city" value={formData.city} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-(--text-muted)" placeholder="Ej: Buenos Aires" />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Precio (USD)</label>
-                <input type="number" name="price" value={formData.price} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none transition-all text-sm" placeholder="Ej: 1200" />
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">Precio (USD)</label>
+                <input type="number" name="price" value={formData.price} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) focus:ring-2 focus:ring-primary outline-none transition-all text-sm placeholder:text-(--text-muted)" placeholder="Ej: 1200" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Unidad</label>
-                  <select name="priceUnit" value={formData.priceUnit} onChange={handleInputChange} className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-sm">
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Unidad</label>
+                  <select name="priceUnit" value={formData.priceUnit} onChange={handleInputChange} className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm">
                     <option value="noche">Noche</option>
                     <option value="mes">Mes</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Operación</label>
-                  <select name="rentalType" value={formData.rentalType} onChange={handleInputChange} className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-sm">
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Operación</label>
+                  <select name="rentalType" value={formData.rentalType} onChange={handleInputChange} className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm">
                     <option value="Temporario">Temporario</option>
                     <option value="Residencial">Residencial</option>
                   </select>
@@ -402,53 +414,52 @@ export default function AdminPropertiesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Huéspedes</label>
-                  <input type="number" name="capacity" value={formData.capacity} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 text-sm" placeholder="Ej: 4" />
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Huéspedes</label>
+                  <input type="number" name="capacity" value={formData.capacity} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm placeholder:text-(--text-muted)" placeholder="Ej: 4" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Mts²</label>
-                  <input type="number" name="area" value={formData.area} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 text-sm" placeholder="Ej: 60" />
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Mts²</label>
+                  <input type="number" name="area" value={formData.area} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm placeholder:text-(--text-muted)" placeholder="Ej: 60" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Habitaciones</label>
-                  <input type="number" name="rooms" value={formData.rooms} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 text-sm" placeholder="Ej: 2" />
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Habitaciones</label>
+                  <input type="number" name="rooms" value={formData.rooms} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm placeholder:text-(--text-muted)" placeholder="Ej: 2" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Baños</label>
-                  <input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-slate-300 text-sm" placeholder="Ej: 1" />
+                  <label className="block text-sm font-semibold text-(--text-main) mb-2">Baños</label>
+                  <input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} required className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm placeholder:text-(--text-muted)" placeholder="Ej: 1" />
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex gap-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="md:col-span-2 flex gap-8 p-4 bg-(--bg-app) rounded-xl border border-(--border-subtle)">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" name="isPetFriendly" checked={formData.isPetFriendly} onChange={handleInputChange} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
-                  <span className="text-sm font-medium text-slate-700">Acepta Mascotas</span>
+                  <input type="checkbox" name="isPetFriendly" checked={formData.isPetFriendly} onChange={handleInputChange} className="w-5 h-5 rounded border-(--border-subtle) text-primary focus:ring-primary" />
+                  <span className="text-sm font-medium text-(--text-main)">Acepta Mascotas</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" name="hasGarage" checked={formData.hasGarage} onChange={handleInputChange} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
-                  <span className="text-sm font-medium text-slate-700">Incluye Cochera</span>
+                  <input type="checkbox" name="hasGarage" checked={formData.hasGarage} onChange={handleInputChange} className="w-5 h-5 rounded border-(--border-subtle) text-primary focus:ring-primary" />
+                  <span className="text-sm font-medium text-(--text-main)">Incluye Cochera</span>
                 </label>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción</label>
-                <textarea name="description" value={formData.description} onChange={handleInputChange} required rows={4} className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary outline-none resize-none text-sm" placeholder="Describe las comodidades..." />
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">Descripción</label>
+                <textarea name="description" value={formData.description} onChange={handleInputChange} required rows={4} className="w-full px-4 py-3 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) focus:ring-2 focus:ring-primary outline-none resize-none text-sm placeholder:text-(--text-muted)" placeholder="Describe las comodidades..." />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Imágenes del inmueble</label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative">
-                  <UploadCloud className="text-slate-400 mb-3" size={40} />
-                  <p className="text-sm text-slate-600 font-medium mb-1">Haz clic o arrastra fotos aquí</p>
-                  <p className="text-xs text-slate-400 mb-3">Máximo 10 fotos (PNG, JPG, WEBP)</p>
+                <label className="block text-sm font-semibold text-(--text-main) mb-2">Imágenes del inmueble</label>
+                <div className="border-2 border-dashed border-(--border-subtle) rounded-xl p-8 flex flex-col items-center justify-center bg-(--bg-app) hover:bg-(--bg-app)/80 transition-colors relative">
+                  <UploadCloud className="text-(--text-muted) mb-3" size={40} />
+                  <p className="text-sm text-(--text-main) font-medium mb-1">Haz clic o arrastra fotos aquí</p>
+                  <p className="text-xs text-(--text-muted) mb-3">Máximo 10 fotos (PNG, JPG, WEBP)</p>
                   
-                  {/* Si editamos, el input no es obligatorio para no forzar a subir fotos de nuevo */}
                   <input type="file" multiple accept="image/*" required={!editingId} onChange={(e) => setFiles(e.target.files)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                   
                   {files && (
-                    <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium mt-2 z-10 pointer-events-none border border-blue-200">
+                    <div className="px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium mt-2 z-10 pointer-events-none border border-primary/20">
                       {files.length} archivo(s) seleccionado(s)
                     </div>
                   )}
@@ -456,9 +467,9 @@ export default function AdminPropertiesPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end pt-6 border-t border-slate-100 gap-4">
+            <div className="flex items-center justify-end pt-6 border-t border-(--border-subtle) gap-4">
               {editingId && (
-                <button type="button" onClick={() => { resetForm(); setActiveTab('list'); }} className="px-6 py-3.5 text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
+                <button type="button" onClick={() => { resetForm(); setActiveTab('list'); }} className="px-6 py-3.5 text-(--text-muted) hover:text-(--text-main) font-semibold hover:bg-(--bg-app) rounded-xl transition-colors cursor-pointer">
                   Cancelar
                 </button>
               )}

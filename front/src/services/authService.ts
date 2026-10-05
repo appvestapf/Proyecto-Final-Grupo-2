@@ -1,6 +1,6 @@
-import { LoginCredentials, RegisterData, AuthResponse } from '@/interfaces/user';
+import { LoginCredentials, RegisterData } from '@/interfaces/user';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<any> {
@@ -14,7 +14,11 @@ export const authService = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Error al iniciar sesión');
+      const errorMessage = Array.isArray(errorData.message) 
+        ? errorData.message[0] 
+        : errorData.message;
+        
+      throw new Error(errorMessage || 'Error al iniciar sesión');
     }
 
     const data = await response.json();
@@ -42,9 +46,13 @@ export const authService = {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Error al registrar el usuario');
+      const errorMessage = Array.isArray(errorData.message) 
+        ? errorData.message[0] 
+        : errorData.message;
+        
+      throw new Error(errorMessage || 'Error al registrar el usuario');
     }
-
+    
     const data = await response.json();
 
     if (typeof window !== 'undefined') {
@@ -59,6 +67,42 @@ export const authService = {
     }
 
     return data;
+  },
+
+  async forgotPassword(email: string): Promise<any> {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = Array.isArray(errorData.message) 
+        ? errorData.message[0] 
+        : errorData.message;
+        
+      throw new Error(errorMessage || 'Error al solicitar recuperación');
+    }
+    return await response.json();
+  },
+
+  async resetPassword(data: { token: string; password: string; confirmPassword: string }): Promise<any> {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = Array.isArray(errorData.message) 
+        ? errorData.message[0] 
+        : errorData.message;
+        
+      throw new Error(errorMessage || 'Error al restablecer la contraseña');
+    }
+    return await response.json();
   },
 
   async getProfile(): Promise<any> {

@@ -28,6 +28,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { PROFILE_EXAMPLE, USER_EXAMPLE } from '../../common/swagger/examples';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -53,6 +54,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Perfil obtenido correctamente',
+    schema: { example: PROFILE_EXAMPLE },
   })
   @ApiResponse({
     status: 401,
@@ -65,11 +67,14 @@ export class UsersController {
   }
 
   @Post('upload-photo')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FileInterceptor('photo'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary:
-      'Subir una foto de perfil a Cloudinary y obtener su URL (usar el resultado en el campo "pfp" al crear/actualizar un usuario)',
+    summary: 'Subir la foto de perfil del usuario logueado',
+    description:
+      'Sube la imagen a Cloudinary y la guarda en el campo pfp del usuario. Devuelve la URL y el perfil actualizado',
   })
   @ApiBody({
     schema: {
@@ -81,8 +86,27 @@ export class UsersController {
   })
   @ApiResponse({
     status: 201,
-    description: 'Foto subida correctamente, se devuelve su URL',
+    description: 'Foto subida y guardada en el perfil',
+    schema: {
+      example: {
+        url: 'https://res.cloudinary.com/tucuenta/image/upload/users/foto.jpg',
+        user: {
+          id: 'UUID',
+          name: 'Sarah Ramirez',
+          email: 'sarah@mail.com',
+          address: 'Calle Falsa 123',
+          isAdmin: false,
+          isSuperAdmin: false,
+          pfp: 'https://res.cloudinary.com/tucuenta/image/upload/users/foto.jpg',
+        },
+      },
+    },
   })
+  @ApiResponse({
+    status: 400,
+    description: 'Falta el archivo, no es una imagen o pesa más de 5 MB',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   async uploadPhoto(
     @UploadedFile(
       new ParseFilePipe({
@@ -93,14 +117,16 @@ export class UsersController {
       }),
     )
     photo: Express.Multer.File,
+    @Req() req: Request,
   ) {
-    const url = await this.usersService.uploadPhoto(photo);
-    return { url };
+    const requester = req.user as { id: string };
+    return this.usersService.updatePhoto(requester.id, photo);
   }
 
   @Post()
   @ApiOperation({ summary: 'Crear un usuario' })
   @ApiResponse({ status: 201, description: 'Usuario creado', type: User })
+  @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 409, description: 'El email ya está registrado' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -121,6 +147,7 @@ export class UsersController {
     status: 403,
     description: 'Solo un admin puede listar todos los usuarios',
   })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   findAll(@Query('includeInactive') includeInactive?: string) {
     return this.usersService.findAll(includeInactive === 'true');
   }
@@ -140,6 +167,7 @@ export class UsersController {
     description: 'No podés consultar el perfil de otro usuario',
   })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string; isAdmin: boolean };
     if (requester.id !== id && !requester.isAdmin) {
@@ -154,8 +182,17 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Dar o quitar el rol de admin (solo superAdmin)' })
+  @ApiOperation({
+    summary: 'Dar o quitar el rol de admin (solo superAdmin)',
+    description:
+      'El usuario afectado tiene que volver a iniciar sesión para que el cambio llegue a su token',
+  })
   @ApiParam({ name: 'id', description: 'UUID del usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Rol actualizado, devuelve el perfil',
+    schema: { example: { ...PROFILE_EXAMPLE, isAdmin: true } },
+  })
   @ApiResponse({ status: 400, description: 'No podés cambiar tu propio rol' })
   @ApiResponse({ status: 403, description: 'Solo un superAdmin puede hacerlo' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
@@ -163,6 +200,7 @@ export class UsersController {
     status: 409,
     description: 'El usuario ya tenía ese rol, o es superAdmin',
   })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   updateRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserRoleDto,
@@ -179,8 +217,15 @@ export class UsersController {
   @ApiOperation({
     summary:
       'Dar o quitar el rol de superAdmin (solo superAdmin). Al darlo también queda como admin',
+    description:
+      'Al quitarlo, el usuario queda como admin. Tiene que volver a iniciar sesión para que el cambio llegue a su token',
   })
   @ApiParam({ name: 'id', description: 'UUID del usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Rol actualizado, devuelve el perfil',
+    schema: { example: { ...PROFILE_EXAMPLE, isAdmin: true, isSuperAdmin: true } },
+  })
   @ApiResponse({ status: 400, description: 'No podés cambiar tu propio rol' })
   @ApiResponse({ status: 403, description: 'Solo un superAdmin puede hacerlo' })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
@@ -188,6 +233,7 @@ export class UsersController {
     status: 409,
     description: 'El usuario ya tenía ese rol o está dado de baja',
   })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   updateSuperAdmin(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserSuperAdminDto,
@@ -204,15 +250,21 @@ export class UsersController {
   @Patch(':id')
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Actualizar un usuario' })
+  @ApiOperation({
+    summary: 'Actualizar un usuario',
+    description:
+      'Cada usuario puede editarse a sí mismo. Un admin puede editar usuarios comunes; solo un superAdmin edita a otros admins; a un superAdmin no lo edita nadie más',
+  })
   @ApiParam({ name: 'id', description: 'UUID del usuario' })
   @ApiResponse({ status: 200, description: 'Usuario actualizado', type: User })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
   @ApiResponse({
     status: 403,
-    description: 'No podés modificar el perfil de otro usuario',
+    description:
+      'No podés modificar a otro usuario, a un admin (si no sos superAdmin) ni a un superAdmin',
   })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -231,11 +283,25 @@ export class UsersController {
   @Delete(':id')
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Eliminar un usuario' })
+  @ApiOperation({
+    summary: 'Dar de baja un usuario (isActive = false, no borra el registro)',
+    description:
+      'Cada usuario puede darse de baja a sí mismo. Un admin puede dar de baja usuarios comunes; solo un superAdmin da de baja a otros admins; un superAdmin no se puede dar de baja',
+  })
   @ApiParam({ name: 'id', description: 'UUID del usuario' })
-  @ApiResponse({ status: 200, description: 'Usuario eliminado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario dado de baja',
+    schema: { example: { ...USER_EXAMPLE, isActive: false } },
+  })
   @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'No podés dar de baja a otro usuario, a un admin (si no sos superAdmin) ni a un superAdmin',
+  })
   @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const requester = req.user as { id: string; isAdmin: boolean };
     if (requester.id !== id && !requester.isAdmin) {

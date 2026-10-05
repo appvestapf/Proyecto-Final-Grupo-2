@@ -3,11 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@ne
 import { AuthGuard } from "@nestjs/passport";
 import type { Request } from "express";
 import { AppointmentService } from "./appointment.service";
+import { APPOINTMENT_EXAMPLE } from "../../common/swagger/examples";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { RescheduleAppointmentDto } from "./dto/reschedule-appointment.dto";
 
 @ApiTags('Appointments')
 @ApiBearerAuth()
+@ApiResponse({ status: 401, description: 'No autenticado' })
 @UseGuards(AuthGuard('jwt'))
 @Controller('appointments')
 export class AppointmentController {
@@ -15,8 +17,14 @@ export class AppointmentController {
 
     @Post()
     @ApiOperation({ summary: 'Agendar una cita para visitar una propiedad' })
-    @ApiResponse({ status: 201, description: 'Cita creada correctamente' })
-    @ApiResponse({ status: 404, description: 'La propiedad no existe' })
+    @ApiResponse({
+        status: 201,
+        description: 'Cita creada (status pending). Se avisa por mail al usuario y al dueño',
+        schema: { example: APPOINTMENT_EXAMPLE },
+    })
+    @ApiResponse({ status: 400, description: 'La fecha tiene que ser futura' })
+    @ApiResponse({ status: 404, description: 'La propiedad no existe o está dada de baja' })
+    @ApiResponse({ status: 409, description: 'Ya hay otra cita para esa propiedad a menos de 30 minutos' })
     create(@Body() createAppointmentDto: CreateAppointmentDto, @Req() req: Request) {
         const user = req.user as { id: string };
         return this.appointmentService.createAppointment(createAppointmentDto, user.id);
@@ -24,7 +32,11 @@ export class AppointmentController {
 
     @Get()
     @ApiOperation({ summary: 'Listar mis citas (todas las del sistema si sos admin)' })
-    @ApiResponse({ status: 200, description: 'Listado de citas' })
+    @ApiResponse({
+        status: 200,
+        description: 'Listado de citas',
+        schema: { example: [APPOINTMENT_EXAMPLE] },
+    })
     findAll(@Req() req: Request) {
         const user = req.user as { id: string; isAdmin: boolean };
         if (user.isAdmin) {
@@ -34,9 +46,14 @@ export class AppointmentController {
     }
 
     @Get(':id')
-    @ApiOperation({ summary: 'Buscar una cita por id' })
+    @ApiOperation({ summary: 'Buscar una cita por id', description: 'Solo el usuario que la agendó, admins incluidos' })
     @ApiParam({ name: 'id', description: 'UUID de la cita' })
-    @ApiResponse({ status: 200, description: 'Cita encontrada' })
+    @ApiResponse({
+        status: 200,
+        description: 'Cita encontrada',
+        schema: { example: APPOINTMENT_EXAMPLE },
+    })
+    @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
     @ApiResponse({ status: 403, description: 'La cita no pertenece al usuario logueado' })
     @ApiResponse({ status: 404, description: 'Cita no encontrada' })
     findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
@@ -45,22 +62,34 @@ export class AppointmentController {
     }
 
     @Delete(':id')
-    @ApiOperation({ summary: 'Cancelar una cita' })
+    @ApiOperation({ summary: 'Cancelar una cita', description: 'Solo el usuario que la agendó. Un admin no puede cancelar citas ajenas' })
     @ApiParam({ name: 'id', description: 'UUID de la cita' })
-    @ApiResponse({ status: 200, description: 'Cita cancelada correctamente' })
+    @ApiResponse({
+        status: 200,
+        description: 'Cita cancelada correctamente',
+        schema: { example: { ...APPOINTMENT_EXAMPLE, status: 'cancelled' } },
+    })
+    @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
     @ApiResponse({ status: 403, description: 'La cita no pertenece al usuario logueado' })
     @ApiResponse({ status: 404, description: 'Cita no encontrada' })
+    @ApiResponse({ status: 409, description: 'La cita ya estaba cancelada' })
     cancel(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
         const user = req.user as { id: string };
         return this.appointmentService.cancel(id, user.id);
     }
 
     @Patch(':id')
-    @ApiOperation({ summary: 'Reprogramar una cita (queda pendiente de confirmar de nuevo)' })
+    @ApiOperation({ summary: 'Reprogramar una cita (queda pendiente de confirmar de nuevo)', description: 'Solo el usuario que la agendó' })
     @ApiParam({ name: 'id', description: 'UUID de la cita' })
-    @ApiResponse({ status: 200, description: 'Cita reprogramada correctamente' })
+    @ApiResponse({
+        status: 200,
+        description: 'Cita reprogramada correctamente',
+        schema: { example: APPOINTMENT_EXAMPLE },
+    })
+    @ApiResponse({ status: 400, description: 'La fecha tiene que ser futura, o el id no es un UUID válido' })
     @ApiResponse({ status: 403, description: 'La cita no pertenece al usuario logueado' })
     @ApiResponse({ status: 404, description: 'Cita no encontrada' })
+    @ApiResponse({ status: 409, description: 'La cita está cancelada o hay otra a menos de 30 minutos' })
     reschedule(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() rescheduleDto: RescheduleAppointmentDto,
@@ -73,9 +102,15 @@ export class AppointmentController {
     @Patch(':id/confirm')
     @ApiOperation({ summary: 'Confirmar una cita (dueño de la propiedad, o admin)' })
     @ApiParam({ name: 'id', description: 'UUID de la cita' })
-    @ApiResponse({ status: 200, description: 'Cita confirmada correctamente' })
+    @ApiResponse({
+        status: 200,
+        description: 'Cita confirmada correctamente',
+        schema: { example: { ...APPOINTMENT_EXAMPLE, status: 'confirmed' } },
+    })
+    @ApiResponse({ status: 400, description: 'El id no es un UUID válido' })
     @ApiResponse({ status: 403, description: 'No podés confirmar esta cita' })
     @ApiResponse({ status: 404, description: 'Cita no encontrada' })
+    @ApiResponse({ status: 409, description: 'La cita está cancelada o ya estaba confirmada' })
     confirm(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
         const user = req.user as { id: string; isAdmin: boolean };
         return this.appointmentService.confirm(id, user.id, user.isAdmin);

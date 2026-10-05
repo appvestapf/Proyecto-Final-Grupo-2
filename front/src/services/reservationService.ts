@@ -1,5 +1,10 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+export interface BlockedDateRange {
+  startDate: string;
+  endDate: string;
+}
+
 export const reservationService = {
   async getMyReservations(token: string) {
     try {
@@ -19,6 +24,46 @@ export const reservationService = {
     } catch (error) {
       console.error("Error en getMyReservations:", error);
       return [];
+    }
+  },
+
+  async getBlockedDates(propertyId: string): Promise<BlockedDateRange[]> {
+    try {
+      const response = await fetch(
+        `${API_URL}/reservations/property/${propertyId}/blocked-dates`,
+        { cache: 'no-store' }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error al obtener las fechas bloqueadas');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`Error obteniendo fechas bloqueadas para la propiedad ${propertyId}:`, error);
+      return [];
+    }
+  },
+
+  async cancelReservation(reservationId: string, token: string) {
+    try {
+      const response = await fetch(`${API_URL}/reservations/${reservationId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al cancelar la reserva');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("Error en cancelReservation:", error);
+      throw error;
     }
   }
 };

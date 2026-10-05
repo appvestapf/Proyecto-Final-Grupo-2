@@ -1,7 +1,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { Property } from './entities/property.entity';
 import { User } from '../users/entities/user.entity';
@@ -11,12 +15,21 @@ describe('PropertiesService', () => {
   let propertiesRepository: any;
   let usersRepository: any;
 
+  let queryBuilder: any;
+
   beforeEach(async () => {
+    queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
     propertiesRepository = {
       create: jest.fn(),
       save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn(() => queryBuilder),
     };
     usersRepository = {
       exists: jest.fn(),
@@ -90,6 +103,86 @@ describe('PropertiesService', () => {
       const result = await service.findNearby(-34.6037, -58.3816, 100);
 
       expect(result.map((p: any) => p.id)).toEqual(['cerca', 'medio']);
+    });
+  });
+
+  describe('findNearby disponibilidad', () => {
+    it('no devuelve propiedades pausadas por el dueño', async () => {
+      propertiesRepository.find.mockResolvedValue([]);
+
+      await service.findNearby(-34.6037, -58.3816, 100);
+
+      expect(propertiesRepository.find).toHaveBeenCalledWith({
+        where: { isDeleted: false, isAvailable: true },
+      });
+    });
+  });
+
+  describe('searchProperties', () => {
+    it('sin lat/lng/radius devuelve el resultado de la query tal cual (sin distanceKm)', async () => {
+      queryBuilder.getMany.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+
+      const result = await service.searchProperties({ capacity: 2 } as any);
+
+      expect(result).toEqual([{ id: 'a' }, { id: 'b' }]);
+    });
+
+    it('con lat/lng/radius filtra y ordena por distancia', async () => {
+      queryBuilder.getMany.mockResolvedValue([
+        { id: 'lejos', lat: -34.9, lng: -56.2 }, // Montevideo
+        { id: 'cerca', lat: -34.61, lng: -58.38 }, // Buenos Aires
+        { id: 'medio', lat: -34.9, lng: -57.95 }, // La Plata
+      ]);
+
+      const result = await service.searchProperties({
+        lat: -34.6037,
+        lng: -58.3816,
+        radius: 100,
+      } as any);
+
+      expect(result.map((p: any) => p.id)).toEqual(['cerca', 'medio']);
+      expect(result[0]).toHaveProperty('distanceKm');
+    });
+
+    it('filtra por rentalType e isPetFriendly', async () => {
+      await service.searchProperties({
+        rentalType: 'Residencial',
+        isPetFriendly: true,
+      } as any);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'LOWER(property.rentalType)=LOWER(:rentalType)',
+        { rentalType: 'Residencial' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'property.isPetFriendly=:isPetFriendly',
+        { isPetFriendly: true },
+      );
+    });
+
+    it('filtra por maxPrice junto con priceUnit', async () => {
+      await service.searchProperties({
+        maxPrice: 50000,
+        priceUnit: 'mes',
+      } as any);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'property.price<=:maxPrice AND property.priceUnit=:priceUnit',
+        { maxPrice: 50000, priceUnit: 'mes' },
+      );
+    });
+
+    it('rechaza maxPrice sin priceUnit', async () => {
+      await expect(
+        service.searchProperties({ maxPrice: 50000 } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('incluye el nombre de la propiedad en la búsqueda por keyword', async () => {
+      await service.searchProperties({ keyword: 'palermo' } as any);
+
+      const conditions = queryBuilder.andWhere.mock.calls.map(([c]: any[]) => c);
+      expect(conditions.some((c: string) => c.includes('property.name'))).toBe(true);
     });
   });
 

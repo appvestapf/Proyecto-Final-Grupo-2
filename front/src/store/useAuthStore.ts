@@ -5,7 +5,7 @@ import { authService } from '@/services/authService';
 import { favoriteService } from '@/services/favoriteService';
 import { toast } from 'sonner';
 
-type UserRole = "visitante" | "inquilino" | "admin";
+type UserRole = "visitante" | "inquilino" | "admin" | "superadmin";
 
 interface AuthState {
   user: User | null;
@@ -21,6 +21,7 @@ interface AuthState {
   register: (userData: RegisterData) => Promise<void>;
   setGoogleToken: (token: string) => Promise<void>;
   logout: () => void;
+  updateUserData: (data: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -93,7 +94,11 @@ export const useAuthStore = create<AuthState>()(
           throw new Error("Respuesta de autenticación inválida");
         }
 
-        const role: UserRole = user.isAdmin ? "admin" : "inquilino";
+          const role: UserRole = user?.isSuperAdmin 
+  ? "superadmin" 
+  : user.isAdmin 
+    ? "admin" 
+    : "inquilino";
         set({ user, token, role, isAuthenticated: true });
 
         await get().fetchFavorites();
@@ -109,7 +114,11 @@ export const useAuthStore = create<AuthState>()(
           throw new Error("Respuesta de registro inválida");
         }
 
-        const role: UserRole = user.isAdmin ? "admin" : "inquilino";
+        const role: UserRole = user?.isSuperAdmin 
+  ? "superadmin" 
+  : user.isAdmin 
+    ? "admin" 
+    : "inquilino";
         set({ user, token, role, isAuthenticated: true });
 
         await get().fetchFavorites();
@@ -135,7 +144,11 @@ export const useAuthStore = create<AuthState>()(
           console.error("No se pudo obtener el perfil tras el login con Google", error);
         }
 
-        const role: UserRole = user?.isAdmin ? "admin" : "inquilino";
+        const role: UserRole = user?.isSuperAdmin 
+  ? "superadmin" 
+  : user?.isAdmin 
+    ? "admin" 
+    : "inquilino";
 
         set({ 
           token, 
@@ -152,6 +165,21 @@ export const useAuthStore = create<AuthState>()(
         authService.logout();
         set({ user: null, token: null, role: "visitante", isAuthenticated: false, userFavorites: [] });
       },
+    
+updateUserData: (data: Partial<User>) => {
+  const currentUser = get().user;
+  if (!currentUser) return;
+  
+  const updatedUser = { ...currentUser, ...data };
+  
+  // Actualiza el estado de Zustand
+  set({ user: updatedUser });
+  
+  // Actualiza el localStorage para que persista al recargar
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  }
+},
     }),
     {
       name: 'vesta-auth-storage',

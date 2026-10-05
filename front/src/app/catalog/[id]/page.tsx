@@ -1,26 +1,47 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
-import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock } from 'lucide-react';
+import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { Property } from '@/interfaces/property';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
 
 // Importaciones del Calendario
-import { DateRange } from 'react-date-range';
+import { DateRange, Range, RangeKeyDict } from 'react-date-range';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css'; 
 
-export default function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+// Importación dinámica de PropertyDetailMap deshabilitando SSR para Mapbox
+const PropertyDetailMap = dynamic(
+  () => import('@/components/property/PropertyDetailMap/PropertyDetailMap').then((mod) => mod.PropertyDetailMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[380px] bg-surface rounded-2xl animate-pulse border border-subtle flex items-center justify-center text-muted text-sm">
+        Cargando mapa de ubicación...
+      </div>
+    ),
+  }
+);
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9";
+
+export default function PropertyDetailPage({ params }: PageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const resolvedParams = use(params);
   const { token, isAuthenticated } = useAuthStore();
 
@@ -29,16 +50,31 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // Estados para reservas con react-date-range
+  // Estados para reservas con react-date-range e inicialización mediante Query Params
   const [showCalendar, setShowCalendar] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
-  const [dateRange, setDateRange] = useState([
-    {
+
+  const [dateRange, setDateRange] = useState<Range[]>(() => {
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+
+    if (startDateParam && endDateParam) {
+      const [sYear, sMonth, sDay] = startDateParam.split('-').map(Number);
+      const [eYear, eMonth, eDay] = endDateParam.split('-').map(Number);
+
+      return [{
+        startDate: new Date(sYear, sMonth - 1, sDay),
+        endDate: new Date(eYear, eMonth - 1, eDay),
+        key: 'selection'
+      }];
+    }
+
+    return [{
       startDate: new Date(),
       endDate: new Date(),
       key: 'selection'
-    }
-  ]);
+    }];
+  });
 
   // Estados para citas (Appointments)
   const [showAppointment, setShowAppointment] = useState(false);
@@ -48,25 +84,41 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     const fetchProperty = async () => {
-      const data = await propertyService.getPropertyById(resolvedParams.id);
-      if (!data) {
+      try {
+        const data = await propertyService.getPropertyById(resolvedParams.id);
+        if (!data) {
+          router.push('/catalog');
+        } else {
+          setProperty(data);
+        }
+      } catch (error) {
+        toast.error('Error al cargar la propiedad');
         router.push('/catalog');
-      } else {
-        setProperty(data);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchProperty();
   }, [resolvedParams.id, router]);
 
+  // Manejo del scroll de fondo y tecla Escape para el modal de galería
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowGallery(false);
+      }
+    };
+
     if (showGallery) {
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
     } else {
       document.body.style.overflow = 'unset';
     }
+
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showGallery]);
 
@@ -81,11 +133,29 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Nueva lógica matemática para leer fechas de la librería
+  // Manejar selección de fechas y actualización de Query Params
+  const handleDateSelect = (item: RangeKeyDict) => {
+    const selectedRange = item.selection;
+    setDateRange([selectedRange]);
+
+    if (selectedRange.startDate && selectedRange.endDate) {
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.set('startDate', format(selectedRange.startDate, 'yyyy-MM-dd'));
+      newParams.set('endDate', format(selectedRange.endDate, 'yyyy-MM-dd'));
+
+      router.replace(`/catalog/${resolvedParams.id}?${newParams.toString()}`, { scroll: false });
+    }
+  };
+
+  // Conversión numérica y segura de las coordenadas
+  const lat = property ? Number(property.lat) : 0;
+  const lng = property ? Number(property.lng) : 0;
+
+  // Cálculo de noches para alquileres temporarios
   const calculateNights = () => {
     const start = dateRange[0].startDate;
     const end = dateRange[0].endDate;
-    if (start.getTime() === end.getTime()) return 0;
+    if (!start || !end || start.getTime() === end.getTime()) return 0;
     
     const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -99,7 +169,8 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const handleScheduleAppointment = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para agendar una visita');
-      router.push('/auth/login');
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
@@ -111,8 +182,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     setProcessingAppointment(true);
 
     try {
-      const dateTimeString = `${appointmentDate}T${appointmentTime}`;
-      const dateObj = new Date(dateTimeString);
+      const [year, month, day] = appointmentDate.split('-').map(Number);
+      const [hours, minutes] = appointmentTime.split(':').map(Number);
+      const dateObj = new Date(year, month - 1, day, hours, minutes);
 
       if (dateObj <= new Date()) {
         toast.error('La fecha y hora de la visita debe ser en el futuro');
@@ -137,12 +209,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const handleReservation = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para solicitar una reserva');
-      router.push('/auth/login');
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
     if (property?.rentalType === 'Temporario') {
-      if (dateRange[0].startDate.getTime() === dateRange[0].endDate.getTime()) {
+      const start = dateRange[0].startDate;
+      const end = dateRange[0].endDate;
+      if (!start || !end || start.getTime() === end.getTime()) {
         toast.error('Por favor selecciona un rango de fechas válido');
         return;
       }
@@ -153,9 +228,9 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
-      const payload: any = { propertyId: property?.id };
+      const payload: Record<string, any> = { propertyId: property?.id };
       
-      if (property?.rentalType === 'Temporario') {
+      if (property?.rentalType === 'Temporario' && dateRange[0].startDate && dateRange[0].endDate) {
         payload.startDate = format(dateRange[0].startDate, 'yyyy-MM-dd');
         payload.endDate = format(dateRange[0].endDate, 'yyyy-MM-dd');
       }
@@ -208,6 +283,14 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
 
   if (!property) return null;
 
+  const imagesList = property.images && property.images.length > 0 ? property.images : [DEFAULT_IMAGE];
+  const coverMainImage = imagesList[0];
+  const coverSecondaryImage = imagesList[1] || imagesList[0];
+
+  const startDate = dateRange[0].startDate;
+  const endDate = dateRange[0].endDate;
+  const hasValidRange = startDate && endDate && startDate.getTime() !== endDate.getTime();
+
   return (
     <>
       {showGallery && (
@@ -228,7 +311,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {property.images.map((img, idx) => (
+              {imagesList.map((img, idx) => (
                 <div key={idx} className={`relative w-full h-[300px] md:h-[450px] ${idx % 3 === 0 ? 'md:col-span-2 md:h-[600px]' : ''}`}>
                   <Image src={img} alt={`${property.title} - foto ${idx + 1}`} fill className="object-cover rounded-xl" />
                 </div>
@@ -239,16 +322,17 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       )}
 
       <main className="w-full bg-app pb-24 transition-colors duration-200">
+        {/* Galería de Portada */}
         <div className="relative w-full h-[40vh] md:h-[55vh] flex overflow-hidden">
           <div className="relative w-1/2 h-full border-r-4 border-app">
-            <Image src={property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={property.title} fill className="object-cover" priority />
+            <Image src={coverMainImage} alt={property.title} fill className="object-cover" priority />
           </div>
           <div className="relative w-1/2 h-full">
-            <Image src={property.images[1] || property.images[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"} alt={`${property.title} interior`} fill className="object-cover" priority />
+            <Image src={coverSecondaryImage} alt={`${property.title} interior`} fill className="object-cover" priority />
           </div>
           <div className="absolute bottom-6 right-6 z-10 flex gap-3">
             <button onClick={() => setShowGallery(true)} className="bg-surface px-4 py-2 text-sm font-semibold text-main rounded-[8px] shadow-md border border-subtle hover:bg-app cursor-pointer flex items-center gap-2 transition-colors">
-              Ver las {property.images.length} fotos
+              Ver las {imagesList.length} fotos
             </button>
           </div>
         </div>
@@ -294,20 +378,46 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
               </div>
+
+              <hr className="border-t border-subtle mb-8" />
+
+              {/* SECCIÓN DE UBICACIÓN Y MAPA */}
+              {!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && (
+                <div className="mb-10">
+                  <h3 className="text-2xl font-bold text-main mb-3 tracking-tight flex items-center gap-2">
+                    <MapPin className="text-primary" size={24} />
+                    Ubicación
+                  </h3>
+                  <p className="text-muted text-base mb-6">
+                    {property.location}
+                  </p>
+                  <PropertyDetailMap 
+                    lat={lat}
+                    lng={lng}
+                    title={property.title}
+                    isExactLocationVisible={false}
+                    radiusInMeters={350}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* CAJA LATERAL FLOTANTE (Con mejoras para Modo Oscuro) */}
+            {/* CAJA LATERAL FLOTANTE */}
             <div className="w-full lg:w-[400px]">
               <div className="sticky top-24 space-y-6">
                 <div className="bg-surface border border-subtle rounded-3xl p-6 shadow-xl dark:shadow-none transition-colors duration-200">
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <span className="text-2xl font-bold text-main">US$ {property.price}</span>
-                      <span className="text-muted"> / {property.priceUnit}</span>
+                      <span className="text-2xl font-bold text-main">
+                        US$ {property.price?.toLocaleString("es-AR")}
+                      </span>
+                      <span className="text-muted">
+                        {" "}/ {property.priceUnit || (property.rentalType === 'Temporario' ? 'noche' : 'mes')}
+                      </span>
                     </div>
                   </div>
 
-                  {/* NUEVO CALENDARIO (react-date-range) */}
+                  {/* CALENDARIO DE RESERVAS */}
                   {property.rentalType === 'Temporario' && (
                     <div ref={calRef} className="relative mb-6">
                       <div 
@@ -316,15 +426,15 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       >
                         <div className="flex-1 flex flex-col justify-center px-2">
                           <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Llegada</label>
-                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
-                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].startDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          <span className={`text-sm font-semibold truncate ${hasValidRange ? 'text-main' : 'text-muted'}`}>
+                            {hasValidRange && startDate ? format(startDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
                           </span>
                         </div>
                         <div className="w-[1px] bg-subtle my-1" />
                         <div className="flex-1 flex flex-col justify-center px-4">
                           <label className="block text-[10px] font-bold uppercase text-muted mb-0.5 cursor-pointer tracking-wider">Salida</label>
-                          <span className={`text-sm font-semibold truncate ${dateRange[0].startDate !== dateRange[0].endDate ? 'text-main' : 'text-muted'}`}>
-                            {dateRange[0].startDate !== dateRange[0].endDate ? format(dateRange[0].endDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
+                          <span className={`text-sm font-semibold truncate ${hasValidRange ? 'text-main' : 'text-muted'}`}>
+                            {hasValidRange && endDate ? format(endDate, 'dd MMM. yyyy', { locale: es }) : 'Añadir fechas'}
                           </span>
                         </div>
                       </div>
@@ -334,13 +444,13 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                         <div className="absolute top-full right-0 mt-2 bg-white rounded-3xl shadow-xl overflow-hidden z-50 border border-slate-200 text-slate-900" onClick={(e) => e.stopPropagation()}>
                           <DateRange
                             ranges={dateRange}
-                            onChange={(item: any) => setDateRange([item.selection])}
+                            onChange={handleDateSelect}
                             minDate={new Date()}
-                            months={1} // Mostramos 1 mes para que entre perfecto en la tarjeta
+                            months={1}
                             direction="horizontal"
                             locale={es}
                             showDateDisplay={false}
-                            rangeColors={['#0055FF']} // Azul Vesta
+                            rangeColors={['#0055FF']}
                           />
                         </div>
                       )}
@@ -350,7 +460,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                   <div className="space-y-3 text-sm text-muted mb-6">
                     <div className="flex justify-between">
                       {property.rentalType === 'Temporario' ? (
-                        <span>US$ {property.price} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
+                        <span>US$ {property.price?.toLocaleString("es-AR")} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
                       ) : (
                         <span>Reserva residencial (1er mes)</span>
                       )}
