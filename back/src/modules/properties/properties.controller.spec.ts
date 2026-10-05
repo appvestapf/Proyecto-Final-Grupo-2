@@ -5,6 +5,7 @@ import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional.guard';
+import { ForbiddenException } from '@nestjs/common';
 
 describe('PropertiesController', () => {
   let controller: PropertiesController;
@@ -41,25 +42,38 @@ describe('PropertiesController', () => {
   });
 
   describe('findAll', () => {
-    it('usa findAllAdmin si el usuario es admin', () => {
-      const req = { user: { isAdmin: true } } as any;
+    it('usa findAllAdmin si manage=true y el usuario es admin', () => {
+      const req = {
+        user: { id: 'u1', isAdmin: true, isSuperAdmin: false },
+      } as any;
 
-      controller.findAll(undefined, undefined, undefined, req);
+      controller.findAll(undefined, undefined, undefined, 'true', req);
 
       expect(propertiesService.findAllAdmin).toHaveBeenCalled();
       expect(propertiesService.findAll).not.toHaveBeenCalled();
     });
 
-    it('usa findAll si el usuario no es admin', () => {
-      const req = { user: { isAdmin: false } } as any;
+    it('usa findAll (catálogo público) si es admin pero sin manage', () => {
+      const req = {
+        user: { id: 'u1', isAdmin: true, isSuperAdmin: false },
+      } as any;
 
-      controller.findAll(undefined, undefined, undefined, req);
+      controller.findAll(undefined, undefined, undefined, undefined, req);
 
       expect(propertiesService.findAll).toHaveBeenCalled();
       expect(propertiesService.findAllAdmin).not.toHaveBeenCalled();
     });
-  });
 
+    it('rechaza manage=true si el usuario no es admin', () => {
+      const req = {
+        user: { id: 'u1', isAdmin: false, isSuperAdmin: false },
+      } as any;
+
+      expect(() =>
+        controller.findAll(undefined, undefined, undefined, 'true', req),
+      ).toThrow(ForbiddenException);
+    });
+  });
   describe('findOne', () => {
     it('usa findOne (sin filtrar borradas) si el usuario es admin', () => {
       const req = { user: { isAdmin: true } } as any;

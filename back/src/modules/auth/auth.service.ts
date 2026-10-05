@@ -84,6 +84,9 @@ export class AuthService {
 
     await this.usersService.resetFailedLogins(user);
 
+    if (!user.isActive)
+      throw new ForbiddenException('Esta cuenta fue dada de baja');
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -170,6 +173,9 @@ export class AuthService {
         'Ya existe una cuenta con este email. Iniciá sesión con email y contraseña.',
       );
     }
+
+    if (!user.isActive)
+      throw new ForbiddenException('Esta cuenta fue dada de baja');
 
     const payload = {
       sub: user.id,
