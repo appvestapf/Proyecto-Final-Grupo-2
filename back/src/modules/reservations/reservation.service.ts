@@ -16,6 +16,82 @@ import { MailService } from '../mail/mail.service';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaymentStatus } from '../payments/enums/payment-status.enum';
 
+// ── Reglas de disponibilidad (también las usan properties y payments) ──
+
+export const PENDING_TTL_MINUTES = 30;
+export const RESIDENTIAL_MIN_MONTHS = 6;
+export const RESIDENTIAL_MAX_MONTHS = 36;
+
+/** Hoy en hora Argentina (YYYY-MM-DD). */
+export function todayDateString(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+/** Suma meses con tope al fin de mes: 31/08 + 6 = 28/02. */
+export function addMonths(dateString: string, months: number): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const index = month - 1 + months;
+  const targetYear = year + Math.floor(index / 12);
+  const targetMonth = index % 12;
+  const lastDay = new Date(
+    Date.UTC(targetYear, targetMonth + 1, 0),
+  ).getUTCDate();
+  const targetDay = Math.min(day, lastDay);
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(
+    targetDay,
+  ).padStart(2, '0')}`;
+}
+
+/** La reserva ocupa fechas si está CONFIRMED, o PENDING con menos de 30 min. */
+export function blockingReservationSql(alias: string): string {
+  return `("${alias}"."status" = :blockingConfirmed OR ("${alias}"."status" = :blockingPending AND "${alias}"."createdAt" > LOCALTIMESTAMP - INTERVAL '${PENDING_TTL_MINUTES} minutes'))`;
+}
+
+export const blockingReservationParams = {
+  blockingConfirmed: ReservationStatus.CONFIRMED,
+  blockingPending: ReservationStatus.PENDING,
+};
+
+/** Superposición con checkout libre: quien sale el 10 no bloquea el 10. */
+export function overlapSql(alias: string): string {
+  return `"${alias}"."startDate" < :endDate AND "${alias}"."endDate" > :startDate`;
+}
+
+/** Cancela las PENDING vencidas y sus pagos pendientes. Devuelve los ids. */
+export async function expireStalePendingReservations(
+  reservationsRepository: Repository<Reservation>,
+  paymentsRepository: Repository<Payment>,
+): Promise<string[]> {
+  const stale: { id: string }[] = await reservationsRepository
+    .createQueryBuilder('reservation')
+    .select('"reservation"."id"', 'id')
+    .where('"reservation"."status" = :pending', {
+      pending: ReservationStatus.PENDING,
+    })
+    .andWhere(
+      `"reservation"."createdAt" <= LOCALTIMESTAMP - INTERVAL '${PENDING_TTL_MINUTES} minutes'`,
+    )
+    .getRawMany();
+
+  const ids = stale.map((row) => row.id);
+  if (ids.length === 0) return [];
+
+  await reservationsRepository.update(
+    { id: In(ids), status: ReservationStatus.PENDING },
+    { status: ReservationStatus.CANCELLED },
+  );
+  await paymentsRepository.update(
+    { reservationId: In(ids), status: PaymentStatus.PENDING },
+    { status: PaymentStatus.CANCELLED },
+  );
+  return ids;
+}
+
 @Injectable()
 export class ReservationService {
   constructor(
@@ -33,42 +109,24 @@ export class ReservationService {
     propertyId: string,
     startDate: string,
     endDate: string,
-  ): Promise<Boolean> {
-    const conflictingReservation = await this.reservationsRepository
+  ): Promise<boolean> {
+    const conflict = await this.reservationsRepository
       .createQueryBuilder('reservation')
       .where('"reservation"."propertyId" = :propertyId', { propertyId })
-      .andWhere('"reservation"."status" IN (:...statuses)', {
-        statuses: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
-      })
-      .andWhere('"reservation"."startDate"<= :endDate', { endDate })
-      .andWhere('"reservation"."endDate">= :startDate', { startDate })
+      .andWhere(
+        blockingReservationSql('reservation'),
+        blockingReservationParams,
+      )
+      .andWhere(overlapSql('reservation'), { startDate, endDate })
       .getOne();
 
-    return !!conflictingReservation;
+    return !!conflict;
   }
+
   private calculateNights(startDate: string, endDate: string): number {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    const differenceInMilliseconds = end.getTime() - start.getTime();
-    const differenceInDays = differenceInMilliseconds / (1000 * 60 * 60 * 24);
-
-    return differenceInDays;
-  }
-  private getTodayDate(): string {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-  private addOneMonth(dateString: string): string {
-    const date = new Date(`${dateString}T00:00:00`);
-    date.setMonth(date.getMonth() + 1);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    const start = Date.parse(`${startDate}T00:00:00Z`);
+    const end = Date.parse(`${endDate}T00:00:00Z`);
+    return Math.round((end - start) / (1000 * 60 * 60 * 24));
   }
 
   async createReservation(
@@ -79,6 +137,7 @@ export class ReservationService {
       propertyId,
       startDate: requestedStartDate,
       endDate: requestedEndDate,
+      months: requestedMonths,
     } = createReservationDto;
 
     const property = await this.propertiesRepository.findOne({
@@ -89,9 +148,17 @@ export class ReservationService {
       throw new ConflictException(
         'La propiedad no está disponible para reservar',
       );
+
+    const today = todayDateString();
+    if (requestedStartDate && requestedStartDate < today)
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser anterior a hoy',
+      );
+
     let startDate: string;
     let endDate: string;
-    let nights: number | null;
+    let nights: number | null = null;
+    let months: number | null = null;
     let totalPrice: number;
 
     if (property.rentalType === 'Temporario') {
@@ -114,15 +181,26 @@ export class ReservationService {
       }
       totalPrice = property.price * nights;
     } else if (property.rentalType === 'Residencial') {
-      startDate = this.getTodayDate();
-      endDate = this.addOneMonth(startDate);
-      nights = null;
+      months = requestedMonths ?? RESIDENTIAL_MIN_MONTHS;
+      if (months < RESIDENTIAL_MIN_MONTHS || months > RESIDENTIAL_MAX_MONTHS)
+        throw new BadRequestException(
+          `Los alquileres residenciales son de ${RESIDENTIAL_MIN_MONTHS} a ${RESIDENTIAL_MAX_MONTHS} meses`,
+        );
+      startDate = requestedStartDate ?? today;
+      endDate = addMonths(startDate, months);
+      // Al reservar se paga el primer mes
       totalPrice = property.price;
     } else {
       throw new BadRequestException(
         `Tipo de alquiler no válido: ${property.rentalType}`,
       );
     }
+
+    // Libera las fechas de reservas pendientes que nunca se pagaron
+    await expireStalePendingReservations(
+      this.reservationsRepository,
+      this.paymentsRepository,
+    );
 
     const hasConflict = await this.hasDateConflict(
       propertyId,
@@ -154,7 +232,7 @@ export class ReservationService {
       property,
     );
 
-    return savedReservation;
+    return { ...savedReservation, months };
   }
 
   async findAll(status?: ReservationStatus) {
@@ -313,27 +391,30 @@ export class ReservationService {
       recentActivity,
     };
   }
-  async getBlockedDates(propertyId:string) {
-    const reservations = await this.reservationsRepository.find({
-      where: {
-        propertyId,
-        status: In([
-          ReservationStatus.PENDING,
-          ReservationStatus.CONFIRMED,
-        ])
-      },
-      select: {
-        startDate:true,
-        endDate: true,
-      },
-      order: {
-        startDate: 'ASC'
-      }
-    })
-    return reservations.map((reservation)=>({
-      startDate: reservation.startDate,
-      endDate: reservation.endDate
-    }))
+
+  async getBlockedDates(propertyId: string) {
+    const reservations = await this.reservationsRepository
+      .createQueryBuilder('reservation')
+      .select([
+        'reservation.id',
+        'reservation.startDate',
+        'reservation.endDate',
+      ])
+      .where('"reservation"."propertyId" = :propertyId', { propertyId })
+      .andWhere(
+        blockingReservationSql('reservation'),
+        blockingReservationParams,
+      )
+      .andWhere('"reservation"."endDate" > :today', {
+        today: todayDateString(),
+      })
+      .orderBy('reservation.startDate', 'ASC')
+      .getMany();
+
+    // endDate es el día de salida: ese día queda libre para otra reserva
+    return reservations.map((r) => ({
+      startDate: r.startDate,
+      endDate: r.endDate,
+    }));
   }
 }
-

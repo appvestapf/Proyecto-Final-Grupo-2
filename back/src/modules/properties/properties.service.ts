@@ -12,7 +12,13 @@ import { CreatePropertyDto } from './dto/createProperty.dto';
 import { UpdatePropertyDto } from './dto/updateProperty.dto';
 import { User } from '../users/entities/user.entity';
 import { PropertySearchFilters } from './dto/propertySearchFilters.dto';
-import { ReservationStatus } from '../reservations/enums/reservation-status.enum';
+import {
+  addMonths,
+  blockingReservationParams,
+  blockingReservationSql,
+  overlapSql,
+  todayDateString,
+} from '../reservations/reservation.service';
 import { PropertySearchDto } from './dto/property-search.dto';
 
 @Injectable()
@@ -60,6 +66,7 @@ export class PropertiesService {
       keyword,
       startDate,
       endDate,
+      months,
       capacity,
       rentalType,
       priceUnit,
@@ -107,13 +114,26 @@ export class PropertiesService {
         { maxPrice, priceUnit },
       );
     }
-    if ((startDate && !endDate) || (!startDate && endDate)) {
+    if (endDate && months) {
+      throw new BadRequestException('Indicá endDate o months, no los dos');
+    }
+    // Residencial: el fin se calcula desde startDate + months
+    const searchEndDate =
+      endDate ??
+      (startDate && months ? addMonths(startDate, months) : undefined);
+
+    if (!!startDate !== !!searchEndDate) {
       throw new BadRequestException(
-        'Para buscar por disponibilidad debes indicar fecha de inicio y fecha de finalización',
+        'Para buscar por disponibilidad debes indicar fecha de inicio y fecha de finalización (o meses)',
       );
     }
-    if (startDate && endDate) {
-      if (startDate >= endDate) {
+    if (startDate && searchEndDate) {
+      if (startDate < todayDateString()) {
+        throw new BadRequestException(
+          'La fecha de inicio no puede ser anterior a hoy',
+        );
+      }
+      if (startDate >= searchEndDate) {
         throw new BadRequestException(
           'La fecha de inicio debe ser anterior a la fecha de finalización',
         );
@@ -122,17 +142,13 @@ export class PropertiesService {
         `NOT EXISTS(
           SELECT 1 FROM reservations reservation
           WHERE reservation."propertyId" = property.id
-          AND reservation.status IN (:...reservationStatuses)
-          AND reservation."startDate" <= :endDate
-          AND reservation."endDate">=:startDate
+          AND ${blockingReservationSql('reservation')}
+          AND ${overlapSql('reservation')}
         )`,
         {
-          reservationStatuses: [
-            ReservationStatus.PENDING,
-            ReservationStatus.CONFIRMED,
-          ],
+          ...blockingReservationParams,
           startDate,
-          endDate,
+          endDate: searchEndDate,
         },
       );
     }

@@ -5,7 +5,6 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { Reservation } from './entities/reservation.entity';
@@ -13,8 +12,6 @@ import { Property } from '../properties/entities/property.entity';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { Payment } from '../payments/entities/payment.entity';
-import { ReservationStatus } from './enums/reservation-status.enum';
-import { PaymentStatus } from '../payments/enums/payment-status.enum';
 
 describe('ReservationService', () => {
   let service: ReservationService;
@@ -27,16 +24,20 @@ describe('ReservationService', () => {
 
   beforeEach(async () => {
     queryBuilder = {
+      select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getOne: jest.fn<() => Promise<any>>().mockResolvedValue(null),
-      //getOne: jest.fn().mockResolvedValue(null),
+      getMany: jest.fn<() => Promise<any>>().mockResolvedValue([]),
+      getRawMany: jest.fn<() => Promise<any>>().mockResolvedValue([]),
     };
     reservationsRepository = {
       create: jest.fn((data: any) => data),
       save: jest.fn((data: any) => Promise.resolve({ id: 'res-1', ...data })),
       find: jest.fn(),
       findOne: jest.fn(),
+      update: jest.fn(),
       createQueryBuilder: jest.fn(() => queryBuilder),
     };
     propertiesRepository = { findOne: jest.fn() };
@@ -112,8 +113,8 @@ describe('ReservationService', () => {
         service.createReservation(
           {
             propertyId: 'prop-1',
-            startDate: '2026-10-01',
-            endDate: '2026-10-05',
+            startDate: '2099-10-01',
+            endDate: '2099-10-05',
           } as any,
           'user-1',
         ),
@@ -135,8 +136,8 @@ describe('ReservationService', () => {
       const result = await service.createReservation(
         {
           propertyId: 'prop-1',
-          startDate: '2026-10-01',
-          endDate: '2026-10-04',
+          startDate: '2099-10-01',
+          endDate: '2099-10-04',
         } as any,
         'user-1',
       );
@@ -144,6 +145,106 @@ describe('ReservationService', () => {
       expect(result.nights).toBe(3);
       expect(result.totalPrice).toBe(300);
       expect(mailService.sendReservationConfirmation).toHaveBeenCalled();
+    });
+
+    it('rechaza una fecha de inicio pasada', async () => {
+      propertiesRepository.findOne.mockResolvedValue({
+        id: 'prop-1',
+        isAvailable: true,
+        rentalType: 'Temporario',
+        price: 100,
+      });
+
+      await expect(
+        service.createReservation(
+          {
+            propertyId: 'prop-1',
+            startDate: '2020-01-01',
+            endDate: '2020-01-05',
+          } as any,
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    describe('Residencial', () => {
+      const residencial = {
+        id: 'prop-1',
+        isAvailable: true,
+        rentalType: 'Residencial',
+        price: 500000,
+      };
+
+      beforeEach(() => {
+        propertiesRepository.findOne.mockResolvedValue(residencial);
+        usersService.findOne.mockResolvedValue({
+          email: 'ana@gmail.com',
+          name: 'Ana',
+        });
+      });
+
+      it('sin months toma 6 meses y cobra el primer mes', async () => {
+        const result = await service.createReservation(
+          { propertyId: 'prop-1', startDate: '2099-01-15' } as any,
+          'user-1',
+        );
+
+        expect(result.startDate).toBe('2099-01-15');
+        expect(result.endDate).toBe('2099-07-15');
+        expect(result.months).toBe(6);
+        expect(result.nights).toBeNull();
+        expect(result.totalPrice).toBe(500000);
+      });
+
+      it('respeta los meses pedidos', async () => {
+        const result = await service.createReservation(
+          { propertyId: 'prop-1', startDate: '2099-03-01', months: 12 } as any,
+          'user-1',
+        );
+
+        expect(result.endDate).toBe('2100-03-01');
+        expect(result.months).toBe(12);
+      });
+
+      it('ajusta al último día del mes (31/08 + 6 meses = 28/02)', async () => {
+        const result = await service.createReservation(
+          { propertyId: 'prop-1', startDate: '2098-08-31' } as any,
+          'user-1',
+        );
+
+        expect(result.endDate).toBe('2099-02-28');
+      });
+
+      it('rechaza menos de 6 meses', async () => {
+        await expect(
+          service.createReservation(
+            { propertyId: 'prop-1', startDate: '2099-01-01', months: 3 } as any,
+            'user-1',
+          ),
+        ).rejects.toThrow(BadRequestException);
+      });
+    });
+
+    it('cancela las reservas PENDING vencidas y sus pagos antes de reservar', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([{ id: 'reserva-vieja' }]);
+      propertiesRepository.findOne.mockResolvedValue({
+        id: 'prop-1',
+        isAvailable: true,
+        rentalType: 'Residencial',
+        price: 500000,
+      });
+      usersService.findOne.mockResolvedValue({
+        email: 'ana@gmail.com',
+        name: 'Ana',
+      });
+
+      await service.createReservation(
+        { propertyId: 'prop-1', startDate: '2099-01-01' } as any,
+        'user-1',
+      );
+
+      expect(reservationsRepository.update).toHaveBeenCalled();
+      expect(paymentsRepository.update).toHaveBeenCalled();
     });
   });
 });
