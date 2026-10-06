@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from 'next/navigation';
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { User } from "@/interfaces/user";
 
 export default function AdminUsersPage() {
-  const { token, user: currentUser } = useAuthStore();
+  const router = useRouter();
+  const { token, role, user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +71,22 @@ export default function AdminUsersPage() {
 
   const getInitials = (name?: string) => name ? name.charAt(0).toUpperCase() : "U";
 
+  useEffect(() => {
+    if (role && role !== 'superadmin') {
+      toast.error('Acceso denegado: Área exclusiva para Super Administradores');
+      router.push('/admin/dashboard');
+    }
+  }, [role, router]);
+
+  if (role !== 'superadmin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-muted">
+        <Loader2 className="animate-spin mb-2 text-primary" size={32} />
+        <p>Verificando permisos de seguridad...</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in duration-300">
       <div className="mb-8">

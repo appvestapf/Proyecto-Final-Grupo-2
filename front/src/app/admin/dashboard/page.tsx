@@ -50,18 +50,19 @@ export default function DashboardOverviewPage() {
         const response = await fetch(`${API_URL}/reservations/admin/metrics`, {
           headers: { 
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}` 
-          }
+            'Authorization': `Bearer ${token}` 
+          },
+          cache: 'no-store' // <-- ESTO EVITA QUE LOS ADMINS VEAN LAS MÉTRICAS CACHEADAS DEL SUPER ADMIN
         });
 
         if (!response.ok) throw new Error("Error obteniendo métricas");
         
         const data = await response.json();
         setMetrics(data);
-        setIsLoading(false);
       } catch (error) {
         console.error("Error al cargar métricas:", error);
         toast.error("No se pudieron cargar las métricas del panel");
+      } finally {
         setIsLoading(false);
       }
     };
@@ -126,10 +127,10 @@ export default function DashboardOverviewPage() {
           <h3 className="text-lg font-bold text-(--text-main) mb-6">Actividad Reciente</h3>
           
           <div className="flex-1 overflow-y-auto pr-2 space-y-5">
-            {metrics?.recentActivity.length === 0 ? (
+            {metrics?.recentActivity?.length === 0 ? (
               <p className="text-sm text-(--text-muted) text-center mt-10">No hay actividad reciente.</p>
             ) : (
-              metrics?.recentActivity.map((activity) => (
+              metrics?.recentActivity?.map((activity) => (
                 <div key={activity.id} className="flex items-center gap-4">
                   
                   {/* Ícono de Estado */}
