@@ -6,6 +6,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
+import { reservationService } from '@/services/reservationService'; // Importamos el servicio actualizado
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
 import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
@@ -20,7 +21,7 @@ import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css'; 
 
-// Importación dinámica de PropertyDetailMap deshabilitando SSR para Mapbox
+// Importación dinámica del Mapa
 const PropertyDetailMap = dynamic(
   () => import('@/components/property/PropertyDetailMap/PropertyDetailMap').then((mod) => mod.PropertyDetailMap),
   {
@@ -50,7 +51,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // Estados para reservas con react-date-range e inicialización mediante Query Params
+  // === ESTADOS PARA ALQUILER TEMPORARIO (Calendario) ===
   const [showCalendar, setShowCalendar] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +76,13 @@ export default function PropertyDetailPage({ params }: PageProps) {
       key: 'selection'
     }];
   });
+
+  // === ESTADOS PARA ALQUILER RESIDENCIAL ===
+  // Inicia mañana por defecto para cumplir con la regla de "fechas futuras"
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [moveInDate, setMoveInDate] = useState(tomorrow.toISOString().split("T")[0]);
+  const [contractMonths, setContractMonths] = useState(6);
 
   // Estados para citas (Appointments)
   const [showAppointment, setShowAppointment] = useState(false);
@@ -133,7 +141,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Manejar selección de fechas y actualización de Query Params
+  // Manejar selección de fechas (Temporarios)
   const handleDateSelect = (item: RangeKeyDict) => {
     const selectedRange = item.selection;
     setDateRange([selectedRange]);
@@ -147,7 +155,6 @@ export default function PropertyDetailPage({ params }: PageProps) {
     }
   };
 
-  // Conversión numérica y segura de las coordenadas
   const lat = property ? Number(property.lat) : 0;
   const lng = property ? Number(property.lng) : 0;
 
@@ -165,7 +172,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const nights = property?.rentalType === 'Temporario' ? calculateNights() : 1;
   const totalPrice = property ? (property.rentalType === 'Temporario' ? property.price * (nights || 1) : property.price) : 0;
 
-  // Manejador para Agendar Cita
+  // Manejador para Agendar Cita (Presencial)
   const handleScheduleAppointment = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para agendar una visita');
@@ -205,7 +212,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
     }
   };
 
-  // Manejador para la Reserva Principal
+  // Manejador para la Reserva Principal (Bifurcado)
   const handleReservation = async () => {
     if (!isAuthenticated || !token) {
       toast.error('Debes iniciar sesión para solicitar una reserva');
@@ -214,44 +221,34 @@ export default function PropertyDetailPage({ params }: PageProps) {
       return;
     }
 
-    if (property?.rentalType === 'Temporario') {
-      const start = dateRange[0].startDate;
-      const end = dateRange[0].endDate;
-      if (!start || !end || start.getTime() === end.getTime()) {
-        toast.error('Por favor selecciona un rango de fechas válido');
-        return;
-      }
-    }
-
     setProcessingPayment(true);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      
       const payload: Record<string, any> = { propertyId: property?.id };
-      
-      if (property?.rentalType === 'Temporario' && dateRange[0].startDate && dateRange[0].endDate) {
-        payload.startDate = format(dateRange[0].startDate, 'yyyy-MM-dd');
-        payload.endDate = format(dateRange[0].endDate, 'yyyy-MM-dd');
+
+      // Validaciones y armado del payload según el tipo de alquiler
+      if (property?.rentalType === 'Temporario') {
+        const start = dateRange[0].startDate;
+        const end = dateRange[0].endDate;
+        if (!start || !end || start.getTime() === end.getTime()) {
+          throw new Error('Por favor selecciona un rango de fechas válido');
+        }
+        payload.startDate = format(start, 'yyyy-MM-dd');
+        payload.endDate = format(end, 'yyyy-MM-dd');
+      } else {
+        if (!moveInDate) {
+          throw new Error('Por favor selecciona una fecha de mudanza');
+        }
+        payload.startDate = moveInDate;
+        payload.months = contractMonths;
+        // Para Residenciales no enviamos endDate
       }
 
-      const resResponse = await fetch(`${API_URL}/reservations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      // 1. Creamos la reserva usando el servicio unificado
+      const reservation = await reservationService.createReservation(token, payload as any);
 
-      if (!resResponse.ok) {
-        const errorData = await resResponse.json().catch(() => ({}));
-        const serverMessage = Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message;
-        throw new Error(serverMessage || 'Error al conectar con el servidor');
-      }
-      
-      const reservation = await resResponse.json();
-
+      // 2. Generamos el link de pago con MercadoPago
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const payResponse = await fetch(`${API_URL}/payments/${reservation.id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -261,7 +258,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
       
       const payment = await payResponse.json();
       
-      toast.success('¡Reserva creada! Redirigiendo a Mercado Pago...');     
+      toast.success('¡Reserva registrada! Redirigiendo a Mercado Pago...');     
       window.location.href = payment.paymentUrl;
 
     } catch (error: any) {
@@ -417,8 +414,9 @@ export default function PropertyDetailPage({ params }: PageProps) {
                     </div>
                   </div>
 
-                  {/* CALENDARIO DE RESERVAS */}
-                  {property.rentalType === 'Temporario' && (
+                  {/* BIFURCACIÓN DE LÓGICA DE ALQUILER: TEMPORARIO VS RESIDENCIAL */}
+                  {property.rentalType === 'Temporario' ? (
+                    // Interfaz para Temporario (Calendario DateRange)
                     <div ref={calRef} className="relative mb-6">
                       <div 
                         onClick={() => setShowCalendar(!showCalendar)}
@@ -439,7 +437,6 @@ export default function PropertyDetailPage({ params }: PageProps) {
                         </div>
                       </div>
 
-                      {/* Popover del Calendario */}
                       {showCalendar && (
                         <div className="absolute top-full right-0 mt-2 bg-white rounded-3xl shadow-xl overflow-hidden z-50 border border-slate-200 text-slate-900" onClick={(e) => e.stopPropagation()}>
                           <DateRange
@@ -455,14 +452,48 @@ export default function PropertyDetailPage({ params }: PageProps) {
                         </div>
                       )}
                     </div>
+                  ) : (
+                    // Interfaz para Residencial (Inputs fijos)
+                    <div className="mb-6 space-y-3">
+                      <div className="flex flex-col border border-subtle rounded-2xl p-3 bg-surface transition-colors">
+                        <label className="block text-[10px] font-bold uppercase text-muted mb-1 cursor-pointer tracking-wider">
+                          Fecha de mudanza
+                        </label>
+                        <input
+                          type="date"
+                          value={moveInDate}
+                          min={new Date().toISOString().split("T")[0]}
+                          onChange={(e) => setMoveInDate(e.target.value)}
+                          className="w-full bg-transparent text-sm font-semibold text-main outline-none dark:[color-scheme:dark] cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex flex-col border border-subtle rounded-2xl p-3 bg-surface transition-colors">
+                        <label className="block text-[10px] font-bold uppercase text-muted mb-1 cursor-pointer tracking-wider">
+                          Duración del contrato
+                        </label>
+                        <select
+                          value={contractMonths}
+                          onChange={(e) => setContractMonths(Number(e.target.value))}
+                          className="w-full bg-transparent text-sm font-semibold text-main outline-none cursor-pointer [&>option]:bg-surface"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 6).map((num) => (
+                            <option key={num} value={num}>{num} meses</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   )}
 
+                  {/* Resumen Financiero */}
                   <div className="space-y-3 text-sm text-muted mb-6">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       {property.rentalType === 'Temporario' ? (
                         <span>US$ {property.price?.toLocaleString("es-AR")} x {nights || 1} {nights === 1 ? 'noche' : 'noches'}</span>
                       ) : (
-                        <span>Reserva residencial (1er mes)</span>
+                        <div className="flex flex-col">
+                          <span>Seña / Adelanto (1er mes)</span>
+                          <span className="text-[10px]">Contrato de {contractMonths} meses</span>
+                        </div>
                       )}
                       <span>US$ {totalPrice.toLocaleString("es-AR")}</span>
                     </div>
@@ -476,10 +507,10 @@ export default function PropertyDetailPage({ params }: PageProps) {
                     variant="primary" 
                     onClick={handleReservation}
                     disabled={processingPayment || !property.isAvailable}
-                    className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 rounded-[14px] ${
+                    className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 rounded-[14px] shadow-sm ${
                       !property.isAvailable 
                         ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed' 
-                        : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer'
+                        : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer hover:shadow-md transition-all'
                     }`}
                   >
                     {processingPayment ? (
@@ -491,7 +522,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                     )}
                   </Button>
                   
-                  {/* SECCIÓN AGENDAR CITA */}
+                  {/* SECCIÓN AGENDAR CITA (Se mantiene igual) */}
                   <div className="mt-6 border-t border-subtle pt-6">
                     <Button
                       variant="outline"
@@ -516,20 +547,20 @@ export default function PropertyDetailPage({ params }: PageProps) {
                             value={appointmentDate}
                             min={new Date().toISOString().split("T")[0]}
                             onChange={(e) => setAppointmentDate(e.target.value)}
-                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark]"
+                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
                           />
                           <input
                             type="time"
                             value={appointmentTime}
                             onChange={(e) => setAppointmentTime(e.target.value)}
-                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark]"
+                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
                           />
                         </div>
                         <Button
                           variant="primary"
                           onClick={handleScheduleAppointment}
                           disabled={processingAppointment}
-                          className="w-full py-2.5 text-sm rounded-[12px]"
+                          className="w-full py-2.5 text-sm rounded-[12px] shadow-sm"
                         >
                           {processingAppointment ? (
                             <span className="flex items-center justify-center gap-2">
