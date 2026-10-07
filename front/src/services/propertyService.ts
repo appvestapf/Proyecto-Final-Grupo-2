@@ -6,6 +6,8 @@ export interface PropertySearchParams {
   keyword?: string;
   startDate?: string;
   endDate?: string;
+  moveInDate?: string;
+  durationMonths?: number;
   capacity?: number;
   lat?: number;
   lng?: number;
@@ -44,6 +46,12 @@ export const propertyService = {
       }
       if (params.startDate) queryParams.append('startDate', params.startDate);
       if (params.endDate) queryParams.append('endDate', params.endDate);
+      
+      // Filtros de Alquiler Residencial
+      if (params.moveInDate) queryParams.append('moveInDate', params.moveInDate);
+      if (typeof params.durationMonths === 'number' && !isNaN(params.durationMonths) && params.durationMonths > 0) {
+        queryParams.append('durationMonths', params.durationMonths.toString());
+      }
       
       if (typeof params.capacity === 'number' && params.capacity > 0) {
         queryParams.append('capacity', params.capacity.toString());

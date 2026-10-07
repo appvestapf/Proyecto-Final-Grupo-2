@@ -1,7 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const appointmentService = {
-  // 1. Para cuando el usuario hace clic en "Agendar Visita" en el catálogo
+  // Crear una nueva visita presencial
   async createAppointment(token: string, propertyId: string, date: string) {
     try {
       const response = await fetch(`${API_URL}/appointments`, {
@@ -13,18 +13,20 @@ export const appointmentService = {
         body: JSON.stringify({ propertyId, date }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al agendar la visita');
+        throw new Error(data.message || 'Error al agendar la visita');
       }
 
-      return await response.json();
-    } catch (error: any) {
-      throw new Error(error.message || 'Error de conexión');
+      return data;
+    } catch (error: unknown) {
+      const errMessage = error instanceof Error ? error.message : 'Error de conexión';
+      throw new Error(errMessage);
     }
   },
 
-  // 2. Para mostrar la lista de visitas en la pestaña "Mis Visitas"
+  // Obtener la lista de citas del usuario
   async getMyAppointments(token: string) {
     try {
       const response = await fetch(`${API_URL}/appointments`, {
@@ -34,17 +36,23 @@ export const appointmentService = {
           'Content-Type': 'application/json',
         },
       });
+
       if (!response.ok) throw new Error('Error al obtener las citas');
+
       return await response.json();
-    } catch (error) {
-      console.error(error);
+    } catch (error: unknown) {
+      console.error('Error en getMyAppointments:', error);
       return [];
     }
   },
 
-  // 3. Cancelar una visita presencial
+  // Cancelar una cita
   async cancelAppointment(appointmentId: string, token: string) {
     try {
+      if (!token) {
+        throw new Error('Token de autenticación no encontrado. Inicie sesión nuevamente.');
+      }
+
       const response = await fetch(`${API_URL}/appointments/${appointmentId}`, {
         method: 'DELETE',
         headers: {
@@ -53,15 +61,65 @@ export const appointmentService = {
         },
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al cancelar la visita');
+        throw new Error(data.message || 'Error al cancelar la visita');
       }
 
-      return await response.json();
-    } catch (error: any) {
-      console.error("Error en cancelAppointment:", error);
+      return data;
+    } catch (error: unknown) {
+      console.error('Error en cancelAppointment:', error);
       throw error;
     }
-  }
+  },
+
+  // Reprogramar una cita
+  async rescheduleAppointment(token: string, appointmentId: string, newDate: string) {
+    try {
+      const response = await fetch(`${API_URL}/appointments/${appointmentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ date: newDate }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al reprogramar la visita');
+      }
+
+      return data;
+    } catch (error: unknown) {
+      console.error('Error en rescheduleAppointment:', error);
+      throw error;
+    }
+  },
+
+  // Confirmar una cita (dueño o admin)
+  async confirmAppointment(token: string, appointmentId: string) {
+    try {
+      const response = await fetch(`${API_URL}/appointments/${appointmentId}/confirm`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al confirmar la visita');
+      }
+
+      return data;
+    } catch (error: unknown) {
+      console.error('Error en confirmAppointment:', error);
+      throw error;
+    }
+  },
 };

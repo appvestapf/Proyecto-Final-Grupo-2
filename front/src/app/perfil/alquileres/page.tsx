@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { 
   MapPin, 
@@ -24,7 +24,6 @@ import { appointmentService } from '@/services/appointmentService';
 import { toast } from 'sonner';
 import PaymentButton from '@/components/property/PaymentButton';
 
-// Componente Skeleton Loader para evitar flashes visuales
 function RentalSkeletonList() {
   return (
     <div className="space-y-6 animate-pulse">
@@ -52,6 +51,7 @@ function RentalSkeletonList() {
 
 export default function MisAlquileresPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'reservas' | 'visitas'>('reservas');
   const [reservas, setReservas] = useState<any[]>([]);
   const [visitas, setVisitas] = useState<any[]>([]);
@@ -61,7 +61,6 @@ export default function MisAlquileresPage() {
   const [cancellingReservationId, setCancellingReservationId] = useState<string | null>(null);
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
 
-  // Estado para el modal de comprobante / detalles
   const [receiptModal, setReceiptModal] = useState<{
     isOpen: boolean;
     reserva: any | null;
@@ -70,7 +69,6 @@ export default function MisAlquileresPage() {
     reserva: null,
   });
   
-  // Estado para el modal de confirmación de cancelación
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     type: 'reserva' | 'visita';
@@ -85,8 +83,8 @@ export default function MisAlquileresPage() {
 
   const { token, isAuthenticated } = useAuthStore();
 
-  const loadData = async () => {
-    if (!token) return;
+  const loadData = useCallback(async () => {
+    if (!token) return [];
     try {
       const [resData, visData] = await Promise.all([
         reservationService.getMyReservations(token),
@@ -94,25 +92,28 @@ export default function MisAlquileresPage() {
       ]);
 
       const sortedReservas = (resData || []).sort((a: any, b: any) => {
-      const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
-      const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
-      return dateB - dateA;
-    });
+        const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
+        const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
+        return dateB - dateA;
+      });
 
       const sortedVisitas = (visData || []).sort((a: any, b: any) => {
-      const dateA = new Date(a.createdAt || a.date || 0).getTime();
-      const dateB = new Date(b.createdAt || b.date || 0).getTime();
-      return dateB - dateA;
-    });
+        const dateA = new Date(a.createdAt || a.date || 0).getTime();
+        const dateB = new Date(b.createdAt || b.date || 0).getTime();
+        return dateB - dateA;
+      });
     
       setReservas(sortedReservas);
       setVisitas(sortedVisitas);
+
+      return sortedReservas;
     } catch (error) {
       console.error("Error cargando el panel:", error);
+      return [];
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -127,11 +128,29 @@ export default function MisAlquileresPage() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, router]);
 
+  // Polling inteligente al ingresar con status approved
   useEffect(() => {
     if (token && !isCheckingAuth) {
       loadData();
+
+      const status = searchParams.get('status') || searchParams.get('collection_status');
+      if (status === 'approved') {
+        let attempts = 0;
+        const interval = setInterval(async () => {
+          attempts += 1;
+          const currentReservas = await loadData();
+          
+          // Detener el polling si alguna reserva cambió a confirmed
+          const hasConfirmed = currentReservas.some((r: any) => r.status === 'confirmed');
+          if (hasConfirmed || attempts >= 6) {
+            clearInterval(interval);
+          }
+        }, 2000);
+
+        return () => clearInterval(interval);
+      }
     }
-  }, [token, isCheckingAuth]);
+  }, [token, isCheckingAuth, loadData, searchParams]);
 
   const openCancelModal = (type: 'reserva' | 'visita', id: string, title: string) => {
     setConfirmModal({
@@ -179,7 +198,15 @@ export default function MisAlquileresPage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('es-AR', {
+    
+    const cleanDate = dateString.split('T')[0];
+    const [year, month, day] = cleanDate.split('-').map(Number);
+    
+    if (!year || !month || !day) return '-';
+
+    const date = new Date(year, month - 1, day);
+    
+    return date.toLocaleDateString('es-AR', {
       day: 'numeric',
       month: 'short',
       year: 'numeric'
@@ -278,7 +305,6 @@ export default function MisAlquileresPage() {
                         <MapPin size={16} /> {reserva.property?.location || `${reserva.property?.city || ''}, ${reserva.property?.country || ''}`}
                       </p>
 
-                      {/* Periodo de Reserva */}
                       {(reserva.startDate || reserva.endDate) && (
                         <div className="inline-flex items-center gap-2 bg-app/60 px-3 py-2 rounded-xl border border-subtle text-xs text-main font-medium">
                           <Calendar size={14} className="text-primary" />
