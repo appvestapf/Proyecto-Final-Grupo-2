@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import { propertyService } from '@/services/propertyService';
-import { Loader2, Plus, Edit2, Trash2, UploadCloud, X } from 'lucide-react';
+import { Loader2, Plus, Edit2, Trash2, UploadCloud, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { toast } from 'sonner';
 
@@ -32,30 +33,54 @@ export default function AdminPropertiesPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingForm, setLoadingForm] = useState(false);
   
+  // --- NUEVOS ESTADOS PARA LA PAGINACIÓN ---
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
+
   const [editingId, setEditingId] = useState<string | null>(null);
 
- const { token, role, user: currentUser } = useAuthStore();
- const isSuperAdmin = currentUser?.isSuperAdmin === true;
+  const { token, role, user: currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.isSuperAdmin === true;
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
 
   const fetchProperties = useCallback(async () => {
+    if (!token) return; 
     setLoadingList(true);
+    
     try {
-      const data = await propertyService.getProperties(); 
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      // Agregamos el &page= al fetch
+      const response = await fetch(`${API_URL}/properties?manage=true&page=${page}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-store'
+      });
+
+      if (!response.ok) throw new Error('Error al obtener propiedades');
+      
+      const data = await response.json(); 
       setProperties(data);
+      
+      // Si el backend devuelve menos de 10, significa que ya no hay más páginas
+      setIsLastPage(data.length < 10);
     } catch (error) {
       toast.error('Error al cargar las propiedades');
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [token, page]);
 
   useEffect(() => {
     const loadProperties = async () => {
-      if (token && role === 'admin') {
+      if (token && (role === 'admin' || role === 'superadmin')) {
         await fetchProperties();
+      } else if (role && role !== 'admin' && role !== 'superadmin') {
+        setLoadingList(false);
       }
     };
     
@@ -101,7 +126,16 @@ export default function AdminPropertiesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que querés eliminar esta propiedad? (No se borrará el historial de reservas, solo dejará de estar visible)')) {
+    // 1. Buscamos la propiedad en el estado actual
+    const propertyToDelete = properties.find(p => p.id === id);
+    
+    // 2. Si ya está eliminada, avisamos y cortamos
+    if (propertyToDelete?.isDeleted) {
+      toast.info('Esta publicación ya se encuentra pausada.');
+      return;
+    }
+
+    if (!window.confirm('¿Estás seguro de que querés pausar esta propiedad? (No se borrará el historial de reservas, solo dejará de estar visible en el catálogo público)')) {
       return;
     }
 
@@ -114,10 +148,16 @@ export default function AdminPropertiesPage() {
 
       if (!response.ok) throw new Error('Error al eliminar');
 
-      toast.success('Propiedad eliminada correctamente');
-      fetchProperties();
+      toast.success('Propiedad pausada correctamente');
+      
+      if (properties.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        fetchProperties();
+      }
+      
     } catch (error) {
-      toast.error('No se pudo eliminar la propiedad');
+      toast.error('No se pudo pausar la propiedad');
     }
   };
 
@@ -198,6 +238,7 @@ export default function AdminPropertiesPage() {
       toast.success(editingId ? '¡Propiedad actualizada con éxito!' : '¡Propiedad publicada con éxito!');
       
       resetForm();
+      setPage(1); // Al publicar algo nuevo, volvemos a la página 1
       await fetchProperties();
       setActiveTab('list');
 
@@ -210,7 +251,7 @@ export default function AdminPropertiesPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-[1400px] mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-(--text-main) tracking-tight">Gestión de Propiedades</h1>
@@ -256,97 +297,147 @@ export default function AdminPropertiesPage() {
             </div>
           ) : properties.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-(--text-muted)">
-              <p>No hay propiedades registradas en el sistema.</p>
-              <Button variant="outline" className="mt-4" onClick={() => setActiveTab('create')}>
-                Crear la primera
-              </Button>
+              <p>No hay propiedades en esta página.</p>
+              {page > 1 ? (
+                <Button variant="outline" className="mt-4" onClick={() => setPage(page - 1)}>
+                  Volver a la página anterior
+                </Button>
+              ) : (
+                <Button variant="outline" className="mt-4" onClick={() => setActiveTab('create')}>
+                  Crear la primera
+                </Button>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-(--text-muted)">
-                <thead className="bg-(--bg-app) text-(--text-main) uppercase font-semibold text-xs border-b border-(--border-subtle)">
-                  <tr>
-                    <th className="px-6 py-4">Inmueble</th>
-                    <th className="px-6 py-4">Ubicación</th>
-                    <th className="px-6 py-4">Tipo</th>
-                    <th className="px-6 py-4">Precio</th>
-                    {/* Nueva columna condicional para Super Admin */}
-                    {isSuperAdmin && <th className="px-6 py-4">Propietario</th>}
-                    <th className="px-6 py-4">Estado</th>
-                    <th className="px-6 py-4 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-(--border-subtle)">
-                  {properties.map((property) => (
-                    <tr key={property.id} className="hover:bg-(--bg-app)/50 transition-colors">
-                      <td className="px-6 py-4 flex items-center gap-4">
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-(--bg-app)">
-                          {property.images && property.images.length > 0 ? (
-                            <Image src={property.images[0]} alt={property.title || property.name} fill className="object-cover" />
-                          ) : (
-                            <span className="text-xs text-center flex h-full items-center justify-center text-(--text-muted)">Sin foto</span>
-                          )}
-                        </div>
-                        <span className="font-semibold text-(--text-main) max-w-[200px] truncate block" title={property.title || property.name}>
-                          {property.title || property.name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-(--text-muted)">{property.location || `${property.city}, ${property.country}`}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-(--bg-app) text-(--text-main) rounded-md text-xs font-medium border border-(--border-subtle)">
-                          {property.rentalType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-(--text-main)">
-                        US$ {property.price}
-                      </td>
-
-                      {/* Celda del Propietario (Solo visible para Super Admin) */}
-                      {isSuperAdmin && (
-                        <td className="px-6 py-4">
-                          {property.owner?.id === currentUser?.id ? (
-                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                              Mi Propiedad
-                            </span>
-                          ) : property.owner ? (
-                            <div className="flex flex-col">
-                              <span className="font-medium text-(--text-main)">{property.owner.name}</span>
-                              <span className="text-[10px] text-(--text-muted)">{property.owner.email}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs italic text-(--text-muted)">Vesta (Sistema)</span>
-                          )}
-                        </td>
-                      )}
-
-                      <td className="px-6 py-4">
-                        {property.isAvailable ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500">Disponible</span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-500">Reservada</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button 
-                          onClick={() => handleEdit(property)}
-                          className="p-2 text-(--text-muted) hover:text-primary transition-colors cursor-pointer" 
-                          title="Editar"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(property.id)}
-                          className="p-2 text-(--text-muted) hover:text-rose-500 transition-colors cursor-pointer" 
-                          title="Eliminar"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs md:text-sm text-(--text-muted)">
+                  <thead className="bg-(--bg-app) text-(--text-main) uppercase font-semibold text-[11px] md:text-xs border-b border-(--border-subtle)">
+                    <tr>
+                      <th className="px-4 py-3">Inmueble</th>
+                      <th className="px-4 py-3">Ubicación</th>
+                      <th className="px-4 py-3">Tipo</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Precio</th>
+                      {isSuperAdmin && <th className="px-4 py-3">Propietario</th>}
+                      <th className="px-4 py-3 whitespace-nowrap text-center">Visibilidad</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>         
+                  </thead>
+                  <tbody className="divide-y divide-(--border-subtle)">
+                    {properties.map((property) => (
+                      <tr key={property.id} className="hover:bg-(--bg-app)/50 transition-colors">
+                        <td className="px-4 py-3 flex items-center gap-3">
+                          <Link 
+                            href={`/catalog/${property.id}`} 
+                            target="_blank"
+                            title="Ver en el catálogo"
+                            className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-(--bg-app) hover:opacity-80 transition-opacity block cursor-pointer group"
+                          >
+                            {property.images && property.images.length > 0 ? (
+                              <Image src={property.images[0]} alt={property.title || property.name} fill className="object-cover" />
+                            ) : (
+                              <span className="text-[10px] text-center flex h-full items-center justify-center text-(--text-muted)">Sin foto</span>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ExternalLink size={14} className="text-white" />
+                            </div>
+                          </Link>
+                          <Link 
+                            href={`/catalog/${property.id}`} 
+                            target="_blank"
+                            className="font-semibold text-(--text-main) max-w-[150px] md:max-w-[200px] truncate block hover:text-primary transition-colors cursor-pointer" 
+                            title={property.title || property.name}
+                          >
+                            {property.title || property.name}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-(--text-muted)">{property.location || `${property.city}, ${property.country}`}</td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-1 bg-(--bg-app) text-(--text-main) rounded-md text-[11px] font-medium border border-(--border-subtle) whitespace-nowrap">
+                            {property.rentalType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-(--text-main) whitespace-nowrap">
+                          US$ {property.price}
+                        </td>
+
+                        {isSuperAdmin && (
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {property.owner?.id === currentUser?.id ? (
+                              <span className="px-2 py-1 rounded-md text-[11px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                                Mi Propiedad
+                              </span>
+                            ) : property.owner ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium text-(--text-main) text-[13px]">{property.owner.name}</span>
+                                <span className="text-[10px] text-(--text-muted)">{property.owner.email}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs italic text-(--text-muted)">Vesta (Sistema)</span>
+                            )}
+                          </td>
+                        )}
+ <td className="px-4 py-3 text-center whitespace-nowrap">
+  {property.isDeleted ? (
+    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-500/10 text-slate-500">
+      Pausada
+    </span>
+  ) : (
+    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500">
+      Pública
+    </span>
+  )}
+</td>
+                     
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <button 
+                              onClick={() => handleEdit(property)}
+                              className="p-1.5 text-(--text-muted) hover:text-primary hover:bg-primary/10 rounded-md transition-colors cursor-pointer" 
+                              title="Editar"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(property.id)}
+                              className="p-1.5 text-(--text-muted) hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer" 
+                              title="Eliminar"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* CONTROLES DE PAGINACIÓN */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-(--border-subtle) bg-(--bg-app)">
+                <span className="text-sm font-medium text-(--text-muted)">
+                  Página {page}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="py-2 px-3 text-xs flex items-center gap-1"
+                  >
+                    <ChevronLeft size={16} /> Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={isLastPage}
+                    className="py-2 px-3 text-xs flex items-center gap-1"
+                  >
+                    Siguiente <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
