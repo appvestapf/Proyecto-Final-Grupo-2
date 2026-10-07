@@ -6,6 +6,7 @@ export interface BlockedDateRange {
 }
 
 export const reservationService = {
+  // 1. Obtener reservas del usuario
   async getMyReservations(token: string) {
     try {
       const response = await fetch(`${API_URL}/reservations/me`, {
@@ -27,6 +28,7 @@ export const reservationService = {
     }
   },
 
+  // 2. Obtener fechas bloqueadas de una propiedad
   async getBlockedDates(propertyId: string): Promise<BlockedDateRange[]> {
     try {
       const response = await fetch(
@@ -45,6 +47,7 @@ export const reservationService = {
     }
   },
 
+  // 3. Cancelar una reserva
   async cancelReservation(reservationId: string, token: string) {
     try {
       const response = await fetch(`${API_URL}/reservations/${reservationId}/cancel`, {
@@ -63,6 +66,37 @@ export const reservationService = {
       return await response.json();
     } catch (error: any) {
       console.error("Error en cancelReservation:", error);
+      throw error;
+    }
+  },
+
+  // 4. NUEVO: Crear una reserva (Soporta Temporario y Residencial)
+  async createReservation(
+    token: string, 
+    payload: { propertyId: string; startDate?: string; endDate?: string; months?: number }
+  ) {
+    try {
+      const response = await fetch(`${API_URL}/reservations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        // Si el backend envía un array de errores de validación, los unimos
+        const serverMessage = Array.isArray(errorData.message) 
+          ? errorData.message.join(', ') 
+          : errorData.message;
+        throw new Error(serverMessage || 'Error al crear la reserva');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("Error en createReservation:", error);
       throw error;
     }
   }
