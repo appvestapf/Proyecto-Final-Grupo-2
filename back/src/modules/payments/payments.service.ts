@@ -15,6 +15,7 @@ import { ReservationStatus } from '../reservations/enums/reservation-status.enum
 import { Property } from '../properties/entities/property.entity';
 import { User } from '../users/entities/user.entity';
 import { MailService } from '../mail/mail.service';
+import { expireStalePendingReservations } from '../reservations/reservation.service';
 
 @Injectable()
 export class PaymentService {
@@ -57,6 +58,14 @@ export class PaymentService {
 
     if (reservation.status !== ReservationStatus.PENDING) {
       throw new ConflictException('La reserva no está pendiente de pago');
+    }
+    // Si pasaron más de 30 minutos sin pagar, la reserva vence y se cancela
+    const expiredIds = await expireStalePendingReservations(
+      this.reservationsRepository,
+      this.paymentsRepository,
+    );
+    if (expiredIds.includes(reservation.id)) {
+      throw new ConflictException('La reserva venció por falta de pago');
     }
 
     const property = await this.propertiesRepository.findOne({

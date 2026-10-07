@@ -1,59 +1,84 @@
-import { Transform, Type } from "class-transformer";
-import { IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class PropertySearchDto {
-    @IsOptional()
-    @IsString()
-    keyword?:string;
+  @IsOptional()
+  @IsString()
+  keyword?: string;
 
-    @IsOptional()
-    @IsDateString()
-    startDate?:string;
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'startDate debe tener formato YYYY-MM-DD',
+  })
+  @IsDateString({ strict: true })
+  startDate?: string;
 
-    @IsOptional()
-    @IsDateString()
-    endDate?:string;
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'endDate debe tener formato YYYY-MM-DD',
+  })
+  @IsDateString({ strict: true })
+  endDate?: string;
 
-    @IsOptional()
-    @Type(()=>Number)
-    @IsNumber()
-    capacity?:number;
+  /** Para residenciales: startDate + months en vez de endDate */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(6)
+  @Max(36)
+  months?: number;
 
-    @IsOptional()
-    @IsIn(['Temporario', 'Residencial'])
-    rentalType?:string;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  capacity?: number;
 
-    @IsOptional()
-    @IsIn(['noche', 'mes'])
-    priceUnit?:string;
+  @IsOptional()
+  @IsIn(['Temporario', 'Residencial'])
+  rentalType?: string;
 
-    @IsOptional()
-    @Type(()=>Number)
-    @IsNumber()
-    @Min(0)
-    maxPrice?:number;
+  @IsOptional()
+  @IsIn(['noche', 'mes'])
+  priceUnit?: string;
 
-    @IsOptional()
-    @Transform(({ value }) => {
-      if (value === 'true' || value === true) return true;
-      if (value === 'false' || value === false) return false;
-      return value;
-    })
-    @IsBoolean()
-    isPetFriendly?:boolean;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  maxPrice?: number;
 
-    @IsOptional()
-    @Type(()=>Number)
-    @IsNumber()
-    lat?:number;
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean()
+  isPetFriendly?: boolean;
 
-    @IsOptional()
-    @Type(()=>Number)
-    @IsNumber()
-    lng?:number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
 
-    @IsOptional()
-    @Type(()=>Number)
-    @IsNumber()
-    radius?:number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  radius?: number;
 }
