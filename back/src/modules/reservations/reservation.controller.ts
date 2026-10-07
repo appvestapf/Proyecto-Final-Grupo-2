@@ -223,13 +223,13 @@ export class ReservationController {
   @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({ status: 403, description: 'Solo administradores' })
   getDashboardMetrics(@Req() req: Request) {
-    const user = req.user as { isAdmin: boolean };
-
-    // Medida de seguridad: Bloquear si no es admin
-    if (!user.isAdmin) {
-      throw new ForbiddenException('Acceso denegado. Solo administradores.');
+    const user = req.user as {
+      id: string,
+      isAdmin: boolean,
+      isSuperAdmin: boolean
     }
-
-    return this.reservationService.getDashboardMetrics();
+    if(!user.isAdmin)throw new ForbiddenException('Acceso denegado. Solo admins')
+    
+    return this.reservationService.getDashboardMetrics(user);
   }
 }
