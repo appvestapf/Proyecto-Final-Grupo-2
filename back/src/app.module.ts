@@ -9,6 +9,7 @@ import { ReservationModule } from './modules/reservations/reservation.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AppointmentModule } from './modules/appointments/appointment.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module';
     ReservationModule,
     PaymentsModule,
     AppointmentModule,
-    ChatbotModule
+    ChatbotModule,
+    SupportModule,
   ],
   controllers: [],
   providers: [],
