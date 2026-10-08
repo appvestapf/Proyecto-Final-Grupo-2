@@ -109,7 +109,30 @@ export class ChatbotService {
       messages.push({
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: JSON.stringify(chatbotProperties),
+        content: JSON.stringify({
+          count: chatbotProperties.length,
+        }),
+      });
+
+      messages.push({
+        role: 'system',
+        content: `
+La búsqueda de propiedades ya fue realizada por el sistema.
+
+Encontré ${chatbotProperties.length} propiedades.
+
+IMPORTANTE:
+- Las propiedades serán mostradas automáticamente por la interfaz de Vesta.
+- NO debes listar las propiedades.
+- NO debes devolver JSON.
+- NO debes devolver bloques de código.
+- NO debes devolver URLs.
+- NO debes usar Markdown para mostrar propiedades.
+- NO debes repetir los datos de las propiedades.
+- Respondé únicamente con un mensaje natural y breve para el usuario.
+- Si se encontraron propiedades, indicá cuántas se encontraron.
+- Si no se encontraron propiedades, indicá que no encontraste propiedades que coincidan con la búsqueda.
+`,
       });
 
       const finalResponse = await this.ai.chat.completions.create({
