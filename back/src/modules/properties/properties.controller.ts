@@ -19,6 +19,7 @@ import {
   Req,
   UnauthorizedException,
   ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import {
@@ -294,6 +295,62 @@ export class PropertiesController {
     radiusKm: number,
   ) {
     return this.propertiesService.findNearby(lat, lng, radiusKm);
+  }
+
+  @Get(':id/next-available')
+  @ApiOperation({
+    summary:
+      'Mes en el que una propiedad residencial vuelve a estar disponible',
+    description:
+      'Devuelve la primera fecha, desde startDate (o desde hoy), en la que se puede alquilar la cantidad de meses indicada (6 por defecto) sin pisar reservas confirmadas o pendientes vigentes. Si hay un hueco entre reservas más corto que esos meses, se saltea. isRequestedDateAvailable indica si la fecha pedida sirve tal cual.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID de la propiedad' })
+  @ApiQuery({
+    name: 'months',
+    required: false,
+    type: Number,
+    example: 12,
+    description: 'Duración del contrato en meses, de 6 a 36 (por defecto 6)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    example: '2027-05-01',
+    description:
+      'Fecha de mudanza deseada (YYYY-MM-DD). Si no se envía, se busca desde hoy',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Fecha y mes de disponibilidad',
+    schema: {
+      example: {
+        propertyId: 'UUID',
+        availableNow: false,
+        isRequestedDateAvailable: false,
+        availableFrom: '2027-03-15',
+        month: '2027-03',
+        monthLabel: 'marzo de 2027',
+        months: 12,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'El id no es un UUID válido, la propiedad no es residencial, months no está entre 6 y 36, o startDate es inválida o pasada',
+  })
+  @ApiResponse({ status: 404, description: 'Propiedad no encontrada' })
+  @ApiResponse({
+    status: 409,
+    description: 'La propiedad está pausada por el dueño',
+  })
+  getNextAvailableMonth(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('months', new DefaultValuePipe(6), ParseIntPipe) months: number,
+    @Query('startDate') startDate?: string,
+  ) {
+    return this.propertiesService.getNextAvailableMonth(id, months, startDate);
   }
 
   @Get(':id')
