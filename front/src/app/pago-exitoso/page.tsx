@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 
-export default function PagoExitosoPage() {
+function PagoExitosoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -103,5 +103,19 @@ export default function PagoExitosoPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PagoExitosoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[70vh] items-center justify-center bg-app">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <PagoExitosoContent />
+    </Suspense>
   );
 }

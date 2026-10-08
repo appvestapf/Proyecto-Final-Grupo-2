@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { 
@@ -49,7 +49,7 @@ function RentalSkeletonList() {
   );
 }
 
-export default function MisAlquileresPage() {
+function MisAlquileresContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'reservas' | 'visitas'>('reservas');
@@ -572,5 +572,13 @@ export default function MisAlquileresPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MisAlquileresPage() {
+  return (
+    <Suspense fallback={<RentalSkeletonList />}>
+      <MisAlquileresContent />
+    </Suspense>
   );
 }
