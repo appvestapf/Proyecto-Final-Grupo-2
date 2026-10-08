@@ -213,6 +213,21 @@ export default function MisAlquileresPage() {
     });
   };
 
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return '-';
+    
+    const parsedDate = new Date(dateString);
+    if (isNaN(parsedDate.getTime())) return '-';
+
+    return parsedDate.toLocaleString('es-AR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center justify-between border-b border-subtle pb-6">
@@ -421,10 +436,8 @@ export default function MisAlquileresPage() {
                     <div className="flex flex-wrap items-end justify-between pt-4 border-t border-subtle gap-4">
                       <div className="bg-app/60 p-3 rounded-xl border border-subtle inline-block">
                         <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">Fecha y Hora</p>
-                        <p className="text-sm font-bold text-main">
-                          {new Date(visita.date).toLocaleString('es-AR', { 
-                            weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute:'2-digit' 
-                          })}
+                        <p className="text-sm font-bold text-main capitalize">
+                          {formatDateTime(visita.date)}
                         </p>
                       </div>
 
