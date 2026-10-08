@@ -16,7 +16,7 @@ export default async function Home() {
       <div className="py-6">
 {destacadosTemporarios.length > 0 && (
           <FeaturedRow 
-            title="Alojamientos populares por días" 
+            title="Alojamientos por días" 
             properties={destacadosTemporarios} 
             href="/catalog?rentalType=Temporario" // <-- Pasamos el filtro exacto
           />

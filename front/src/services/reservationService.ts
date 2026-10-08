@@ -22,6 +22,7 @@ export const reservationService = {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        cache: 'no-store' 
       });
 
       if (!response.ok) {

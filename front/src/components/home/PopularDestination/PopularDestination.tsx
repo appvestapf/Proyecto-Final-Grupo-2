@@ -44,7 +44,7 @@ export const PopularDestination = () => {
     <section className="w-full max-w-[1350px] mx-auto py-4 px-6 md:px-12 lg:px-8">
       <div className="mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-main tracking-tight mb-3">
-          Destinos más elegidos
+          Destinos populares
         </h2>
         <p className="text-muted text-lg">
           Explora propiedades verificadas en las ciudades con mayor demanda de la región.
