@@ -5,9 +5,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import { propertyService } from '@/services/propertyService';
-import { Loader2, Plus, Edit2, Trash2, UploadCloud, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Edit2, Trash2, UploadCloud, X, ExternalLink, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
 import { toast } from 'sonner';
+
+// IMPORTS PARA EL MAPA INTERACTIVO
+import Map, { Marker } from 'react-map-gl/mapbox';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 const DEFAULT_FORM_STATE = {
   name: '',
@@ -23,7 +27,7 @@ const DEFAULT_FORM_STATE = {
   area: '',
   isPetFriendly: false,
   hasGarage: false,
-  lat: -34.5889,
+  lat: -34.5889, // Por defecto Buenos Aires, pero ahora será modificable
   lng: -58.4309,
 };
 
@@ -33,7 +37,7 @@ export default function AdminPropertiesPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingForm, setLoadingForm] = useState(false);
   
-  // --- NUEVOS ESTADOS PARA LA PAGINACIÓN ---
+  // --- ESTADOS PARA LA PAGINACIÓN ---
   const [page, setPage] = useState(1);
   const [isLastPage, setIsLastPage] = useState(false);
 
@@ -52,7 +56,6 @@ export default function AdminPropertiesPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
-      // Agregamos el &page= al fetch
       const response = await fetch(`${API_URL}/properties?manage=true&page=${page}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -66,7 +69,6 @@ export default function AdminPropertiesPage() {
       const data = await response.json(); 
       setProperties(data);
       
-      // Si el backend devuelve menos de 10, significa que ya no hay más páginas
       setIsLastPage(data.length < 10);
     } catch (error) {
       toast.error('Error al cargar las propiedades');
@@ -95,6 +97,15 @@ export default function AdminPropertiesPage() {
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  // NUEVA FUNCIÓN PARA CAMBIAR UBICACIÓN CON CLIC EN EL MAPA
+  const handleMapClick = (e: any) => {
+    setFormData(prev => ({
+      ...prev,
+      lat: e.lngLat.lat,
+      lng: e.lngLat.lng
+    }));
   };
 
   const resetForm = () => {
@@ -126,10 +137,8 @@ export default function AdminPropertiesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    // 1. Buscamos la propiedad en el estado actual
     const propertyToDelete = properties.find(p => p.id === id);
     
-    // 2. Si ya está eliminada, avisamos y cortamos
     if (propertyToDelete?.isDeleted) {
       toast.info('Esta publicación ya se encuentra pausada.');
       return;
@@ -238,7 +247,7 @@ export default function AdminPropertiesPage() {
       toast.success(editingId ? '¡Propiedad actualizada con éxito!' : '¡Propiedad publicada con éxito!');
       
       resetForm();
-      setPage(1); // Al publicar algo nuevo, volvemos a la página 1
+      setPage(1); 
       await fetchProperties();
       setActiveTab('list');
 
@@ -377,18 +386,18 @@ export default function AdminPropertiesPage() {
                             )}
                           </td>
                         )}
- <td className="px-4 py-3 text-center whitespace-nowrap">
-  {property.isDeleted ? (
-    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-500/10 text-slate-500">
-      Pausada
-    </span>
-  ) : (
-    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500">
-      Pública
-    </span>
-  )}
-</td>
-                     
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          {property.isDeleted ? (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-500/10 text-slate-500">
+                              Pausada
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500">
+                              Pública
+                            </span>
+                          )}
+                        </td>
+                      
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <button 
@@ -533,6 +542,66 @@ export default function AdminPropertiesPage() {
                   <input type="checkbox" name="hasGarage" checked={formData.hasGarage} onChange={handleInputChange} className="w-5 h-5 rounded border-(--border-subtle) text-primary focus:ring-primary" />
                   <span className="text-sm font-medium text-(--text-main)">Incluye Cochera</span>
                 </label>
+              </div>
+
+              {/* SECCIÓN DEL MAPA INTERACTIVO */}
+              <div className="md:col-span-2 border border-(--border-subtle) rounded-2xl p-5 bg-(--bg-app) shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="text-primary w-5 h-5" />
+                  <h3 className="font-semibold text-(--text-main)">Ubicación exacta (Mapa)</h3>
+                </div>
+                <p className="text-xs text-(--text-muted) mb-4">
+                  Hacé clic en el mapa para posicionar la propiedad o ingresá las coordenadas manualmente.
+                </p>
+                
+                <div className="h-[300px] w-full rounded-xl overflow-hidden border border-(--border-subtle) relative mb-5 shadow-inner">
+                  <Map
+                    mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+                    initialViewState={{
+                      latitude: Number(formData.lat) || -34.5889,
+                      longitude: Number(formData.lng) || -58.4309,
+                      zoom: 12
+                    }}
+                    mapStyle="mapbox://styles/mapbox/streets-v12"
+                    onClick={handleMapClick}
+                    cursor="crosshair"
+                  >
+                    <Marker 
+                      latitude={Number(formData.lat)} 
+                      longitude={Number(formData.lng)} 
+                      anchor="bottom"
+                    >
+                      <MapPin className="text-primary fill-white w-8 h-8 drop-shadow-lg animate-bounce" />
+                    </Marker>
+                  </Map>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-(--bg-surface) p-4 rounded-xl border border-(--border-subtle)">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-(--text-muted) mb-1">Latitud</label>
+                    <input 
+                      type="number" 
+                      step="any" 
+                      name="lat" 
+                      value={formData.lat} 
+                      onChange={handleInputChange} 
+                      required 
+                      className="w-full px-3 py-2 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm focus:ring-2 focus:ring-primary outline-none transition-all" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-(--text-muted) mb-1">Longitud</label>
+                    <input 
+                      type="number" 
+                      step="any" 
+                      name="lng" 
+                      value={formData.lng} 
+                      onChange={handleInputChange} 
+                      required 
+                      className="w-full px-3 py-2 rounded-lg border border-(--border-subtle) bg-(--bg-app) text-(--text-main) text-sm focus:ring-2 focus:ring-primary outline-none transition-all" 
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="md:col-span-2">
