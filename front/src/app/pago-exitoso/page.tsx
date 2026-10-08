@@ -9,14 +9,11 @@ export default function PagoExitosoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Estado de verificación simulada
   const [isVerifying, setIsVerifying] = useState(true);
-  // Contador de redirección
   const [countdown, setCountdown] = useState(5);
 
   const paymentId = searchParams.get("payment_id") || searchParams.get("collection_id");
 
-  // Simulación de espera para el webhook
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVerifying(false);
@@ -25,7 +22,6 @@ export default function PagoExitosoPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Temporizador para redirección (comienza a restar solo cuando termina la verificación)
   useEffect(() => {
     if (isVerifying || countdown <= 0) return;
 
@@ -36,7 +32,6 @@ export default function PagoExitosoPage() {
     return () => clearInterval(timer);
   }, [isVerifying, countdown]);
 
-  // Redirección automática
   useEffect(() => {
     if (!isVerifying && countdown === 0) {
       router.push("/perfil/alquileres?status=approved");
@@ -44,55 +39,54 @@ export default function PagoExitosoPage() {
   }, [isVerifying, countdown, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] bg-white px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md border border-slate-200 rounded-xl p-8 shadow-sm text-center">
+    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-app px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md rounded-xl border border-subtle bg-surface p-8 text-center shadow-sm">
         {isVerifying ? (
-          /* --- ESTADO DE VERIFICACIÓN --- */
           <div className="flex flex-col items-center animate-in fade-in duration-500">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-5 border border-blue-100 shadow-xs">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-xs">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">
+            <h1 className="mb-3 text-2xl font-bold tracking-tight text-main">
               Verificando tu pago...
             </h1>
-            <p className="text-sm font-medium text-slate-600 leading-relaxed mb-2">
+            <p className="mb-2 text-sm font-medium leading-relaxed text-muted">
               Estamos confirmando la transacción con Mercado Pago.
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted">
               Por favor, aguardá un momento.
             </p>
           </div>
         ) : (
-          /* --- ESTADO CONFIRMADO --- */
           <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 border border-emerald-100 shadow-xs">
-              <CheckCircle2 className="w-8 h-8" />
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-secondary/20 bg-secondary/10 text-secondary shadow-xs">
+              <CheckCircle2 className="h-8 w-8" />
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">
+            <h1 className="mb-3 text-2xl font-bold tracking-tight text-main">
               ¡Reserva Confirmada!
             </h1>
 
-            <p className="text-sm font-medium text-slate-600 leading-relaxed mb-4">
+            <p className="mb-4 text-sm font-medium leading-relaxed text-muted">
               Tu pago ha sido registrado de forma segura. La propiedad ha quedado reservada.
             </p>
 
             {paymentId && (
-              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 mb-4 text-xs text-slate-500 font-mono w-full">
+              <div className="mb-4 w-full rounded-lg border border-subtle bg-app p-3 font-mono text-xs text-muted">
                 Comprobante MP: #{paymentId}
               </div>
             )}
 
-            <p className="text-xs text-slate-400 mb-6">
-              Redirigiendo a tus alquileres en <span className="font-bold text-slate-700">{countdown}</span> segundos...
+            <p className="mb-6 text-xs text-muted">
+              Redirigiendo a tus alquileres en{" "}
+              <span className="font-bold text-main">{countdown}</span> segundos...
             </p>
 
-            <div className="w-full border-t border-slate-100 my-4" />
+            <div className="my-4 w-full border-t border-subtle" />
 
-            <div className="flex flex-col w-full gap-3">
+            <div className="flex w-full flex-col gap-3">
               <Link
                 href="/perfil/alquileres?status=approved"
-                className="w-full text-center text-sm font-medium bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-white shadow-sm transition-colors duration-200 hover:bg-primary/90"
               >
                 Ir a Mis Alquileres
                 <ArrowRight size={16} />
@@ -100,7 +94,7 @@ export default function PagoExitosoPage() {
 
               <Link
                 href="/"
-                className="w-full text-center text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors duration-200 py-2"
+                className="w-full py-2 text-center text-sm font-medium text-muted transition-colors duration-200 hover:text-primary"
               >
                 Volver al Inicio
               </Link>

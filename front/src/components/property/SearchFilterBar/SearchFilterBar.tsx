@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Plus, Minus, SlidersHorizontal, X, RotateCcw, Calendar, Clock } from 'lucide-react';
 import { DateRange, Calendar as SingleCalendar, RangeKeyDict, Range } from 'react-date-range';
 import { es } from 'date-fns/locale';
-import { format, parseISO, isValid, addMonths } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -24,10 +24,10 @@ const DESTINOS_FAMOSOS = [
 const SEARCH_STORAGE_KEY = 'vesta_last_search_params';
 
 const DURACIONES_RESIDENCIAL = [
-  { value: '3', label: '3 Meses' },
   { value: '6', label: '6 Meses' },
   { value: '12', label: '1 Año (12 Meses)' },
-  { value: '24', label: '2 Años (24 Meses)' }
+  { value: '24', label: '2 Años (24 Meses)' },
+  { value: '36', label: '3 Años (36 Meses)' }
 ];
 
 interface SearchFilterBarProps {
@@ -86,7 +86,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     setIsPetFriendly(pet);
 
     // Carga de fechas temporarias
-    const s = searchParams.get('startDate');
+    const s = searchParams.get('startDate') || searchParams.get('moveInDate');
     const e = searchParams.get('endDate');
     if (s && e) {
       const start = parseISO(s);
@@ -97,8 +97,8 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     }
 
     // Carga de fechas residenciales
-    const mIn = searchParams.get('moveInDate');
-    const dur = searchParams.get('durationMonths');
+    const mIn = searchParams.get('startDate') || searchParams.get('moveInDate');
+    const dur = searchParams.get('months') || searchParams.get('durationMonths');
     if (mIn) {
       const parsedMoveIn = parseISO(mIn);
       if (isValid(parsedMoveIn)) setMoveInDate(parsedMoveIn);
@@ -156,7 +156,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
       storageObj['capacity'] = capacity.toString();
     }
 
-    // Lógica segregada por Tipo de Contrato
     const activeRentalType = rentalType || 'Temporario';
     params.set('rentalType', activeRentalType);
     storageObj['rentalType'] = activeRentalType;
@@ -180,15 +179,15 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
         storageObj['priceUnit'] = 'noche';
       }
     } else {
-      // Residencial
+
       if (moveInDate) {
         const moveInFormatted = format(moveInDate, 'yyyy-MM-dd');
-        params.set('moveInDate', moveInFormatted);
-        storageObj['moveInDate'] = moveInFormatted;
+        params.set('startDate', moveInFormatted);
+        storageObj['startDate'] = moveInFormatted;
       }
       if (durationMonths) {
-        params.set('durationMonths', durationMonths);
-        storageObj['durationMonths'] = durationMonths;
+        params.set('months', durationMonths);
+        storageObj['months'] = durationMonths;
       }
       if (maxPrice) {
         params.set('maxPrice', maxPrice);
@@ -241,10 +240,6 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
     rentalType === 'Temporario'
       ? startDate && endDate && startDate.getTime() !== endDate.getTime()
       : Boolean(moveInDate)
-  );
-
-  const hasActiveFilters = Boolean(
-    location || capacity > 1 || hasActiveDates || maxPrice || isPetFriendly
   );
 
   return (

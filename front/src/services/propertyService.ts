@@ -8,6 +8,7 @@ export interface PropertySearchParams {
   endDate?: string;
   moveInDate?: string;
   durationMonths?: number;
+  months?: number;
   capacity?: number;
   lat?: number;
   lng?: number;
@@ -44,13 +45,20 @@ export const propertyService = {
       if (params.keyword?.trim()) {
         queryParams.append('keyword', params.keyword.trim());
       }
-      if (params.startDate) queryParams.append('startDate', params.startDate);
-      if (params.endDate) queryParams.append('endDate', params.endDate);
-      
-      // Filtros de Alquiler Residencial
-      if (params.moveInDate) queryParams.append('moveInDate', params.moveInDate);
-      if (typeof params.durationMonths === 'number' && !isNaN(params.durationMonths) && params.durationMonths > 0) {
-        queryParams.append('durationMonths', params.durationMonths.toString());
+
+      const isResidencial = params.rentalType?.toLowerCase() === 'residencial';
+
+      if (isResidencial) {
+        const effectiveStartDate = params.startDate || params.moveInDate;
+        const effectiveMonths = params.months || params.durationMonths;
+
+        if (effectiveStartDate) queryParams.append('startDate', effectiveStartDate);
+        if (typeof effectiveMonths === 'number' && !isNaN(effectiveMonths) && effectiveMonths > 0) {
+          queryParams.append('months', effectiveMonths.toString());
+        }
+      } else {
+        if (params.startDate) queryParams.append('startDate', params.startDate);
+        if (params.endDate) queryParams.append('endDate', params.endDate);
       }
       
       if (typeof params.capacity === 'number' && params.capacity > 0) {

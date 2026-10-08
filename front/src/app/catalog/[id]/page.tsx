@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
@@ -100,12 +101,14 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const [moveInDate, setMoveInDate] = useState(getTomorrowString());
   const [contractMonths, setContractMonths] = useState(6);
 
-  // Estados para citas (Appointments)
+  // === ESTADOS PARA CITAS (Visita Presencial) ===
   const [showAppointment, setShowAppointment] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [processingAppointment, setProcessingAppointment] = useState(false);
+  const [hasScheduledVisit, setHasScheduledVisit] = useState(false);
 
+  // Carga de Propiedad
   useEffect(() => {
     const fetchProperty = async () => {
       try {
@@ -124,6 +127,29 @@ export default function PropertyDetailPage({ params }: PageProps) {
     };
     fetchProperty();
   }, [resolvedParams.id, router]);
+
+  // Verificar si el usuario ya tiene una visita activa para esta propiedad
+  useEffect(() => {
+    const checkExistingAppointment = async () => {
+      if (!isAuthenticated || !token || !resolvedParams.id) return;
+      try {
+        const myAppointments = await appointmentService.getMyAppointments(token);
+        const activeAppointment = myAppointments.find(
+          (app: any) =>
+            (app.propertyId === resolvedParams.id || app.property?.id === resolvedParams.id) &&
+            app.status?.toUpperCase() !== 'CANCELADA' &&
+            app.status?.toUpperCase() !== 'CANCELLED'
+        );
+        if (activeAppointment) {
+          setHasScheduledVisit(true);
+        }
+      } catch (error) {
+        console.error("Error al consultar las visitas del usuario:", error);
+      }
+    };
+
+    checkExistingAppointment();
+  }, [isAuthenticated, token, resolvedParams.id]);
 
   // Manejo de scroll de fondo y tecla Escape para la galería
   useEffect(() => {
@@ -217,6 +243,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
       await appointmentService.createAppointment(token, property?.id as string, dateObj.toISOString());
       
       toast.success('¡Visita presencial agendada con éxito!');
+      setHasScheduledVisit(true);
       setShowAppointment(false);
       setAppointmentDate('');
       setAppointmentTime('');
@@ -527,54 +554,75 @@ export default function PropertyDetailPage({ params }: PageProps) {
                     )}
                   </Button>
                   
+                  {/* SECCIÓN ACTUALIZADA DE VISITA PRESENCIAL */}
                   <div className="mt-6 border-t border-subtle pt-6">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowAppointment(!showAppointment)}
-                      disabled={!property.isAvailable}
-                      className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all rounded-[14px] ${
-                        !property.isAvailable 
-                          ? 'border-subtle text-muted cursor-not-allowed'
-                          : 'border-subtle text-main hover:bg-app'
-                      }`}
-                    >
-                      <CalendarClock size={18} />
-                      Agendar visita presencial
-                    </Button>
-
-                    {showAppointment && (
-                      <div className="mt-4 p-4 bg-app border border-subtle rounded-2xl space-y-4 animation-fade-in">
-                        <p className="text-xs font-bold uppercase text-muted tracking-wider">Elige cuándo ir:</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <input
-                            type="date"
-                            value={appointmentDate}
-                            min={getTodayString()}
-                            onChange={(e) => setAppointmentDate(e.target.value)}
-                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
-                          />
-                          <input
-                            type="time"
-                            value={appointmentTime}
-                            onChange={(e) => setAppointmentTime(e.target.value)}
-                            className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
-                          />
+                    {hasScheduledVisit ? (
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                          <CheckCircle2 size={18} />
+                          <span>¡Visita Presencial Agendada!</span>
                         </div>
-                        <Button
-                          variant="primary"
-                          onClick={handleScheduleAppointment}
-                          disabled={processingAppointment}
-                          className="w-full py-2.5 text-sm rounded-[12px] shadow-sm"
+                        <p className="text-xs text-muted leading-relaxed">
+                          Ya coordinaste una visita para este inmueble.
+                        </p>
+                        <Link
+                          href="/perfil/alquileres"
+                          className="text-xs font-semibold text-primary hover:underline mt-1 inline-block"
                         >
-                          {processingAppointment ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <Loader2 className="animate-spin" size={16} /> Procesando...
-                            </span>
-                          ) : (
-                            "Confirmar Visita"
-                          )}
-                        </Button>
+                          Ver en Mis Alquileres &rarr;
+                        </Link>
                       </div>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAppointment(!showAppointment)}
+                          disabled={!property.isAvailable}
+                          className={`w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all rounded-[14px] ${
+                            !property.isAvailable 
+                              ? 'border-subtle text-muted cursor-not-allowed'
+                              : 'border-subtle text-main hover:bg-app'
+                          }`}
+                        >
+                          <CalendarClock size={18} />
+                          Agendar visita presencial
+                        </Button>
+
+                        {showAppointment && (
+                          <div className="mt-4 p-4 bg-app border border-subtle rounded-2xl space-y-4 animation-fade-in">
+                            <p className="text-xs font-bold uppercase text-muted tracking-wider">Elige cuándo ir:</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <input
+                                type="date"
+                                value={appointmentDate}
+                                min={getTodayString()}
+                                onChange={(e) => setAppointmentDate(e.target.value)}
+                                className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
+                              />
+                              <input
+                                type="time"
+                                value={appointmentTime}
+                                onChange={(e) => setAppointmentTime(e.target.value)}
+                                className="w-full bg-surface border border-subtle text-sm font-medium outline-none text-main rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-primary/20 dark:[color-scheme:dark] cursor-pointer"
+                              />
+                            </div>
+                            <Button
+                              variant="primary"
+                              onClick={handleScheduleAppointment}
+                              disabled={processingAppointment}
+                              className="w-full py-2.5 text-sm rounded-[12px] shadow-sm"
+                            >
+                              {processingAppointment ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <Loader2 className="animate-spin" size={16} /> Procesando...
+                                </span>
+                              ) : (
+                                "Confirmar Visita"
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 

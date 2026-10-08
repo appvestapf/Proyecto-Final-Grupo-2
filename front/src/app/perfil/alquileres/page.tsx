@@ -174,7 +174,7 @@ export default function MisAlquileresPage() {
     if (type === 'reserva') {
       setCancellingReservationId(id);
       try {
-        await reservationService.cancelReservation(id, token);
+        await reservationService.cancelReservation(token, id);
         toast.success('Reserva cancelada correctamente');
         await loadData();
       } catch (error: any) {

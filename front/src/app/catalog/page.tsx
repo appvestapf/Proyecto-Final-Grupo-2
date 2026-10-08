@@ -21,7 +21,6 @@ const SUGGESTED_DESTINATIONS = [
   "Bogotá"
 ];
 
-// Carga dinámica de PropertyMap con ssr: false
 const PropertyMap = dynamic<PropertyMapProps>(
   () => import('@/components/property/PropertyMap/PropertyMap').then((mod) => mod.PropertyMap),
   { ssr: false }
@@ -37,30 +36,27 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
-  // Carga de propiedades desde el servicio según los parámetros de la URL
   useEffect(() => {
     const loadProperties = async () => {
       setLoading(true);
       try {
         const keyword = searchParams.get('keyword') || searchParams.get('location') || undefined;
-        const startDate = searchParams.get('startDate') || undefined;
+        const rentalType = searchParams.get('rentalType') || undefined;
+
+        const startDate = searchParams.get('startDate') || searchParams.get('moveInDate') || undefined;
         const endDate = searchParams.get('endDate') || undefined;
         
-        // Parámetros residenciales
-        const moveInDate = searchParams.get('moveInDate') || undefined;
-        const durationParam = searchParams.get('durationMonths');
-        const durationMonths = durationParam ? parseInt(durationParam, 10) : undefined;
+        const durationParam = searchParams.get('durationMonths') || searchParams.get('months');
+        const months = durationParam ? parseInt(durationParam, 10) : undefined;
 
         const capacityParam = searchParams.get('capacity');
         const capacity = capacityParam ? parseInt(capacityParam, 10) : undefined;
 
-        const rentalType = searchParams.get('rentalType') || undefined;
         const maxPriceParam = searchParams.get('maxPrice');
         const maxPriceVal = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
 
-        // Solo enviamos maxPrice si existe rentalType definido
         const maxPrice = (rentalType && maxPriceVal && !isNaN(maxPriceVal)) ? maxPriceVal : undefined;
-        const priceUnit = maxPrice ? (rentalType === 'Temporario' ? 'noche' : 'mes') : undefined;
+        const priceUnit = maxPrice ? (rentalType?.toLowerCase() === 'temporario' ? 'noche' : 'mes') : undefined;
 
         const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
         const isPetFriendly = isPetFriendlyParam === 'true' ? true : undefined;
@@ -72,9 +68,8 @@ function CatalogContent() {
         const searchPayload: PropertySearchParams = {
           keyword,
           startDate,
-          endDate,
-          moveInDate,
-          durationMonths: durationMonths && !isNaN(durationMonths) ? durationMonths : undefined,
+          endDate: rentalType?.toLowerCase() === 'residencial' ? undefined : endDate,
+          months: months && !isNaN(months) ? months : undefined,
           capacity: capacity && !isNaN(capacity) ? capacity : undefined,
           rentalType,
           maxPrice,
@@ -100,7 +95,6 @@ function CatalogContent() {
     loadProperties();
   }, [searchParams]);
 
-  // Filtro defensivo de respaldo en el cliente
   const filteredProperties = useMemo(() => {
     const rentalType = searchParams.get('rentalType');
     const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
