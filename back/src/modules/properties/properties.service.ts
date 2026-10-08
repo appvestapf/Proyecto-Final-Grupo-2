@@ -20,6 +20,7 @@ import {
   todayDateString,
 } from '../reservations/reservation.service';
 import { PropertySearchDto } from './dto/property-search.dto';
+import { Reservation } from '../reservations/entities/reservation.entity';
 
 @Injectable()
 export class PropertiesService {
@@ -28,6 +29,8 @@ export class PropertiesService {
     private propertiesRepository: Repository<Property>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Reservation)
+    private reservationsRepository: Repository<Reservation>,
   ) {}
 
   create(createPropertyDto: CreatePropertyDto, ownerId: string) {
@@ -302,6 +305,96 @@ export class PropertiesService {
       }))
       .filter((property) => property.distanceKm <= radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm);
+  }
+
+  async getNextAvailableMonth(id: string, months = 6, startDate?: string) {
+    if (months < 6 || months > 36) {
+      throw new BadRequestException(
+        'Los alquileres residenciales son de 6 a 36 meses',
+      );
+    }
+    const today = todayDateString();
+    if (startDate !== undefined) {
+      const parsed = new Date(`${startDate}T00:00:00Z`);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+        isNaN(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== startDate
+      ) {
+        throw new BadRequestException(
+          'startDate debe tener formato YYYY-MM-DD',
+        );
+      }
+      if (startDate < today) {
+        throw new BadRequestException(
+          'La fecha de inicio no puede ser anterior a hoy',
+        );
+      }
+    }
+
+    const property = await this.findOnePublic(id);
+    if (property.rentalType !== 'Residencial') {
+      throw new BadRequestException(
+        'Este dato solo aplica a propiedades residenciales',
+      );
+    }
+    if (!property.isAvailable) {
+      throw new ConflictException(
+        'La propiedad está pausada por el dueño y no se puede reservar',
+      );
+    }
+
+    const searchFrom = startDate ?? today;
+    const reservations = await this.reservationsRepository
+      .createQueryBuilder('reservation')
+
+      .select([
+        'reservation.id',
+        'reservation.startDate',
+        'reservation.endDate',
+      ])
+      .where('"reservation"."propertyId" = :propertyId', { propertyId: id })
+      .andWhere(
+        blockingReservationSql('reservation'),
+        blockingReservationParams,
+      )
+      .andWhere('"reservation"."endDate" > :searchFrom', { searchFrom })
+      .orderBy('reservation.startDate', 'ASC')
+      .getMany();
+
+    let availableFrom = searchFrom;
+    for (const reservation of reservations) {
+      const contractEnd = addMonths(availableFrom, months);
+      if (contractEnd <= reservation.startDate) break;
+      if (reservation.endDate > availableFrom) {
+        availableFrom = reservation.endDate;
+      }
+    }
+
+    const monthNames = [
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
+    ];
+    const [year, month] = availableFrom.split('-').map(Number);
+    return {
+      propertyId: property.id,
+      availableNow: availableFrom === today,
+      isRequestedDateAvailable: availableFrom === searchFrom,
+      availableFrom,
+      month: availableFrom.slice(0, 7),
+      monthLabel: `${monthNames[month - 1]} de ${year}`,
+      months,
+    };
   }
 
   async addToFavorites(propertyId: string, userId: string) {

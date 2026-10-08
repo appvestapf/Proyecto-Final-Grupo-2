@@ -151,7 +151,51 @@ export class MailService {
     );
   }
 
-  private async send(to: string, subject: string, html: string) {
+  async sendSupportRequest(data: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) {
+    const supportInbox =
+      process.env.SUPPORT_INBOX_EMAIL ??
+      process.env.MAIL_FROM_EMAIL ??
+      'appvestapf@gmail.com';
+
+    await this.send(
+      supportInbox,
+      `Nueva consulta de soporte: ${data.subject}`,
+      `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <div style="background-color: #ffffff; padding: 32px 24px;">
+            <h1 style="color: #1e293b; font-size: 20px; margin: 0 0 16px;">Nueva consulta de soporte</h1>
+            <p style="color: #475569; font-size: 14px; margin: 0 0 4px;"><strong>Nombre:</strong> ${this.escapeHtml(data.name)}</p>
+            <p style="color: #475569; font-size: 14px; margin: 0 0 4px;"><strong>Email:</strong> ${this.escapeHtml(data.email)}</p>
+            <p style="color: #475569; font-size: 14px; margin: 0 0 16px;"><strong>Motivo:</strong> ${this.escapeHtml(data.subject)}</p>
+            <p style="color: #475569; font-size: 14px; margin: 0 0 4px;"><strong>Mensaje:</strong></p>
+            <p style="color: #1e293b; font-size: 14px; white-space: pre-wrap; background-color: #f8fafc; border-radius: 8px; padding: 12px;">${this.escapeHtml(data.message)}</p>
+          </div>
+        </div>
+      `,
+      data.email,
+    );
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private async send(
+    to: string,
+    subject: string,
+    html: string,
+    replyTo?: string,
+  ) {
     try {
       await sgMail.send({
         to,
@@ -159,6 +203,7 @@ export class MailService {
           email: process.env.MAIL_FROM_EMAIL ?? 'appvestapf@gmail.com',
           name: process.env.MAIL_FROM_NAME ?? 'Vesta',
         },
+        ...(replyTo ? { replyTo } : {}),
         subject,
         html,
       });

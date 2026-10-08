@@ -1,19 +1,30 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { Property } from './entities/property.entity';
 import { User } from '../users/entities/user.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
 
 describe('PropertiesService', () => {
   let service: PropertiesService;
   let propertiesRepository: any;
   let usersRepository: any;
+  let reservationsRepository: any;
+  let reservationsQueryBuilder: any;
 
   let queryBuilder: any;
 
@@ -22,7 +33,7 @@ describe('PropertiesService', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([]),
+      getMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
     };
     propertiesRepository = {
       create: jest.fn(),
@@ -36,12 +47,29 @@ describe('PropertiesService', () => {
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),
     };
+    reservationsQueryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
+    };
+    reservationsRepository = {
+      createQueryBuilder: jest.fn(() => reservationsQueryBuilder),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PropertiesService,
-        { provide: getRepositoryToken(Property), useValue: propertiesRepository },
+        {
+          provide: getRepositoryToken(Property),
+          useValue: propertiesRepository,
+        },
         { provide: getRepositoryToken(User), useValue: usersRepository },
+        {
+          provide: getRepositoryToken(Reservation),
+          useValue: reservationsRepository,
+        },
       ],
     }).compile();
 
@@ -75,7 +103,11 @@ describe('PropertiesService', () => {
     });
 
     it('permite al dueño actualizar su propiedad', async () => {
-      const property = { id: 'prop-1', owner: { id: 'owner-1' }, name: 'Viejo' };
+      const property = {
+        id: 'prop-1',
+        owner: { id: 'owner-1' },
+        name: 'Viejo',
+      };
       propertiesRepository.findOne.mockResolvedValue(property);
       propertiesRepository.save.mockImplementation((p: any) =>
         Promise.resolve(p),
@@ -181,8 +213,12 @@ describe('PropertiesService', () => {
     it('incluye el nombre de la propiedad en la búsqueda por keyword', async () => {
       await service.searchProperties({ keyword: 'palermo' } as any);
 
-      const conditions = queryBuilder.andWhere.mock.calls.map(([c]: any[]) => c);
-      expect(conditions.some((c: string) => c.includes('property.name'))).toBe(true);
+      const conditions = queryBuilder.andWhere.mock.calls.map(
+        ([c]: any[]) => c,
+      );
+      expect(conditions.some((c: string) => c.includes('property.name'))).toBe(
+        true,
+      );
     });
   });
 
@@ -194,9 +230,204 @@ describe('PropertiesService', () => {
       });
       usersRepository.exists.mockResolvedValue(true);
 
+      await expect(service.addToFavorites('prop-1', 'user-1')).rejects.toThrow(
+        'La propiedad ya está en tus favoritos',
+      );
+    });
+  });
+  describe('getNextAvailableMonth', () => {
+    const residencial = {
+      id: 'prop-1',
+      rentalType: 'Residencial',
+      isAvailable: true,
+      isDeleted: false,
+    };
+
+    beforeEach(() => {
+      // "hoy" fijo: 7 de octubre de 2026 en Argentina
+      jest.useFakeTimers({
+        now: new Date('2026-10-07T15:00:00Z'),
+        doNotFake: ['nextTick', 'setImmediate'],
+      });
+      propertiesRepository.findOne.mockResolvedValue(residencial);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('sin reservas está disponible desde hoy', async () => {
+      const result = await service.getNextAvailableMonth('prop-1');
+
+      expect(result).toEqual({
+        propertyId: 'prop-1',
+        availableNow: true,
+        isRequestedDateAvailable: true,
+        availableFrom: '2026-10-07',
+        month: '2026-10',
+        monthLabel: 'octubre de 2026',
+        months: 6,
+      });
+    });
+
+    it('con una reserva en curso, queda disponible el día que termina', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1');
+
+      expect(result.availableNow).toBe(false);
+      expect(result.availableFrom).toBe('2027-03-01');
+      expect(result.monthLabel).toBe('marzo de 2027');
+    });
+
+    it('saltea un hueco entre reservas más corto que 6 meses', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+        { startDate: '2027-06-01', endDate: '2027-12-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1');
+
+      expect(result.availableFrom).toBe('2027-12-01');
+    });
+
+    it('usa un hueco de exactamente 6 meses (el día de salida queda libre)', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+        { startDate: '2027-09-01', endDate: '2028-03-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1');
+
+      expect(result.availableFrom).toBe('2027-03-01');
+    });
+
+    it('si la próxima reserva empieza en más de 6 meses, está disponible hoy', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2027-06-01', endDate: '2027-12-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1');
+
+      expect(result.availableNow).toBe(true);
+    });
+
+    it('con months=12 saltea un hueco donde entran 6 meses pero no 12', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+        { startDate: '2027-09-01', endDate: '2028-03-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1', 12);
+
+      expect(result.availableFrom).toBe('2028-03-01');
+      expect(result.months).toBe(12);
+    });
+
+    it('con months=12 está disponible hoy si la próxima reserva empieza en más de 12 meses', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2028-01-01', endDate: '2028-07-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth('prop-1', 12);
+
+      expect(result.availableNow).toBe(true);
+    });
+
+    it('rechaza months fuera de 6 a 36', async () => {
+      await expect(service.getNextAvailableMonth('prop-1', 3)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.getNextAvailableMonth('prop-1', 40)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('con startDate en un hueco donde entran los meses, devuelve esa fecha', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+        { startDate: '2028-01-01', endDate: '2028-07-01' },
+      ]);
+
+      const result = await service.getNextAvailableMonth(
+        'prop-1',
+        6,
+        '2027-04-01',
+      );
+
+      expect(result.availableFrom).toBe('2027-04-01');
+      expect(result.isRequestedDateAvailable).toBe(true);
+      expect(result.availableNow).toBe(false);
+    });
+
+    it('con startDate que choca con una reserva, devuelve la próxima fecha que sirve', async () => {
+      reservationsQueryBuilder.getMany.mockResolvedValue([
+        { startDate: '2026-09-01', endDate: '2027-03-01' },
+        { startDate: '2027-09-01', endDate: '2028-03-01' },
+      ]);
+
+      // desde el 01/05/2027, 6 meses llegan a 01/11/2027 y pisan la segunda
+      const result = await service.getNextAvailableMonth(
+        'prop-1',
+        6,
+        '2027-05-01',
+      );
+
+      expect(result.availableFrom).toBe('2028-03-01');
+      expect(result.isRequestedDateAvailable).toBe(false);
+    });
+
+    it('rechaza startDate con formato inválido', async () => {
       await expect(
-        service.addToFavorites('prop-1', 'user-1'),
-      ).rejects.toThrow('La propiedad ya está en tus favoritos');
+        service.getNextAvailableMonth('prop-1', 6, '01/05/2027'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza una startDate que no existe (30 de febrero)', async () => {
+      await expect(
+        service.getNextAvailableMonth('prop-1', 6, '2027-02-30'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza startDate anterior a hoy', async () => {
+      await expect(
+        service.getNextAvailableMonth('prop-1', 6, '2026-01-01'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza propiedades temporarias', async () => {
+      propertiesRepository.findOne.mockResolvedValue({
+        ...residencial,
+        rentalType: 'Temporario',
+      });
+
+      await expect(service.getNextAvailableMonth('prop-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rechaza propiedades pausadas por el dueño', async () => {
+      propertiesRepository.findOne.mockResolvedValue({
+        ...residencial,
+        isAvailable: false,
+      });
+
+      await expect(service.getNextAvailableMonth('prop-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('404 si la propiedad está dada de baja', async () => {
+      propertiesRepository.findOne.mockResolvedValue({
+        ...residencial,
+        isDeleted: true,
+      });
+
+      await expect(service.getNextAvailableMonth('prop-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
