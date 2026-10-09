@@ -4,7 +4,7 @@ import React from 'react';
 import { Property } from '@/interfaces/property';
 import { Badge } from '@/components/common/Badge/Badge';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
-import { Star, Bath, Bed, Tag } from 'lucide-react';
+import { Star, Bath, Bed, Tag, CalendarClock } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -31,7 +31,15 @@ export const CardInmueble = ({ data }: { data: Property }) => {
           <div className="absolute top-3 left-3 z-10">
             <Badge text={data.rentalType} type={data.rentalType} />
           </div>
-
+          {/* OVERLAY: Disponible desde (SOLO RESIDENCIALES OCUPADOS) */}
+          {data.rentalType === 'Residencial' && data.availableNow === false && data.availableFrom && (
+            <div className="absolute inset-x-0 bottom-0 z-20 p-3 bg-gradient-to-t from-slate-900/90 via-slate-900/70 to-transparent">
+              <div className="flex items-center gap-2 text-white text-[11px] font-semibold tracking-wide">
+                <CalendarClock size={14} className="text-amber-400" />
+                <span>Libre desde {new Date(data.availableFrom).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</span>
+              </div>
+            </div>
+          )}
           {/* Botón de Favorito Flotante */}
           <div className="absolute top-3 right-3 z-10">
             <FavoriteButton propertyId={data.id} />
