@@ -9,6 +9,7 @@ import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
 import { reservationService } from '@/services/reservationService';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useBlockedDates } from '@/hooks/useBlockedDates';
 import { toast } from 'sonner';
 import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
@@ -64,20 +65,23 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resolvedParams = use(params);
+  
   const { token, isAuthenticated } = useAuthStore();
+  
+  // Hook de tu compañero para traer las fechas bloqueadas
+  const { blockedDatesList, isDateBlocked } = useBlockedDates(resolvedParams.id);
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
 
-  // === NUEVO ESTADO: Disponibilidad Residencial ===
+  // === ESTADO: Disponibilidad Residencial ===
   const [availability, setAvailability] = useState<{ availableNow: boolean, availableFrom: string | null } | null>(null);
 
   // === ESTADOS PARA ALQUILER TEMPORARIO (Calendario) ===
   const [showCalendar, setShowCalendar] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
-  const [disabledDates, setDisabledDates] = useState<Date[]>([]);
 
   const [dateRange, setDateRange] = useState<Range[]>(() => {
     const startDateParam = searchParams.get('startDate');
@@ -112,7 +116,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const [processingAppointment, setProcessingAppointment] = useState(false);
   const [hasScheduledVisit, setHasScheduledVisit] = useState(false);
 
-  // Carga de Propiedad, Disponibilidad y Fechas Bloqueadas
+  // Carga de Propiedad y Disponibilidad
   useEffect(() => {
     const fetchPropertyData = async () => {
       try {
@@ -125,47 +129,16 @@ export default function PropertyDetailPage({ params }: PageProps) {
 
         // Si es residencial, consultamos su disponibilidad a futuro
         if (data.rentalType === 'Residencial') {
-          // Asumimos que propertyService.getNextAvailable está definido como vimos antes
           const availData = await propertyService.getNextAvailable(resolvedParams.id);
           if (availData) {
             setAvailability(availData);
             // Si está ocupada, sugerimos como fecha de mudanza la fecha en la que se libera
             if (!availData.availableNow && availData.availableFrom) {
-               // Compensamos la zona horaria para que no se atrase un día
                const [year, month, day] = availData.availableFrom.split('-').map(Number);
                setMoveInDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
             }
           }
         }
-
-        // Si es Temporario, consultamos las fechas bloqueadas
-        if (data.rentalType === 'Temporario') {
-          // (Si tu compañero creó un custom hook "useBlockedDates", deberías integrarlo aquí en su lugar.
-          // Dejo esta implementación manual como backup basada en reservationService).
-          try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const res = await fetch(`${API_URL}/reservations/property/${resolvedParams.id}/blocked-dates`);
-            if (res.ok) {
-              const blockedRanges = await res.json();
-              const datesToBlock: Date[] = [];
-              blockedRanges.forEach((range: { startDate: string; endDate: string }) => {
-                const [sY, sM, sD] = range.startDate.split('-').map(Number);
-                const [eY, eM, eD] = range.endDate.split('-').map(Number);
-                const current = new Date(sY, sM - 1, sD);
-                const end = new Date(eY, eM - 1, eD);
-                
-                while (current < end) {
-                  datesToBlock.push(new Date(current));
-                  current.setDate(current.getDate() + 1);
-                }
-              });
-              setDisabledDates(datesToBlock);
-            }
-          } catch (err) {
-            console.error("Error al cargar fechas bloqueadas", err);
-          }
-        }
-
       } catch {
         toast.error('Error al cargar la propiedad');
         router.push('/catalog');
@@ -329,6 +302,14 @@ export default function PropertyDetailPage({ params }: PageProps) {
         if (!moveInDate) {
           throw new Error('Por favor selecciona una fecha de mudanza');
         }
+
+        const [mYear, mMonth, mDay] = moveInDate.split('-').map(Number);
+        const selectedMoveInDate = new Date(mYear, mMonth - 1, mDay);
+
+        if (isDateBlocked(selectedMoveInDate)) {
+          throw new Error('La fecha de mudanza seleccionada se encuentra dentro de un período no disponible.');
+        }
+
         payload.startDate = moveInDate;
         payload.months = contractMonths;
       }
@@ -374,6 +355,8 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const startDate = dateRange[0].startDate;
   const endDate = dateRange[0].endDate;
   const hasValidRange = startDate && endDate && startDate.getTime() !== endDate.getTime();
+  
+  // SOLUCIÓN AL ERROR DEL NULL: Variable estricta booleana
   const isResidencialOccupied = Boolean(
     property.rentalType === 'Residencial' && 
     availability !== null && 
@@ -544,7 +527,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                             ranges={dateRange}
                             onChange={handleDateSelect}
                             minDate={new Date()}
-                            disabledDates={disabledDates}
+                            disabledDates={blockedDatesList}
                             months={1}
                             direction="horizontal"
                             locale={es}
@@ -563,11 +546,17 @@ export default function PropertyDetailPage({ params }: PageProps) {
                         <input
                           type="date"
                           value={moveInDate}
-                          // Si está ocupada, la fecha mínima es cuando se libera. Si no, es hoy.
                           min={availability && !availability.availableNow && availability.availableFrom ? availability.availableFrom : getTodayString()}
                           onChange={(e) => setMoveInDate(e.target.value)}
                           className="w-full bg-transparent text-sm font-semibold text-main outline-none dark:[color-scheme:dark] cursor-pointer"
                         />
+                        
+                        {moveInDate && isDateBlocked(new Date(Number(moveInDate.split('-')[0]), Number(moveInDate.split('-')[1]) - 1, Number(moveInDate.split('-')[2]))) && (
+                        <span className="text-[11px] font-medium text-red-500 mt-1.5 flex items-center gap-1">
+                          ⚠️ Esta fecha no está disponible para ingresar.
+                        </span>
+                        )}
+
                       </div>
                       <div className="flex flex-col border border-subtle rounded-2xl p-3 bg-surface transition-colors">
                         <label className="block text-[10px] font-bold uppercase text-muted mb-1 cursor-pointer tracking-wider">
@@ -624,7 +613,6 @@ export default function PropertyDetailPage({ params }: PageProps) {
                       "Solicitar reserva"
                     )}
                   </Button>
-      
                   
                   {/* SECCIÓN ACTUALIZADA DE VISITA PRESENCIAL */}
                   <div className="mt-6 border-t border-subtle pt-6">
