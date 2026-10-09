@@ -11,17 +11,28 @@ export default function ContactSupportPage() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmitAction = (formData: FormData) => {
-    // Extraemos los valores de manera nativa usando la API FormData
+    
     const name = formData.get("name");
     const email = formData.get("email");
     const subject = formData.get("subject");
     const message = formData.get("message");
 
-    // startTransition envuelve la lógica asíncrona y activa 'isPending' automáticamente
+    
     startTransition(async () => {
       try {
-        // Simulación de envío a la API que conectará con Nodemailer
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/support/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, email, subject, message }),
+        });
+
+        
+        if (!response.ok) {
+          throw new Error('Error en el servidor');
+        }
         
         setIsSuccess(true);
         toast.success("Mensaje enviado con éxito");
@@ -94,6 +105,7 @@ export default function ContactSupportPage() {
 
             <div>
               <label htmlFor="subject" className="block text-sm font-medium text-main mb-2">Motivo de la consulta</label>
+             
               <select 
                 id="subject" 
                 name="subject"
