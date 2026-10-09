@@ -359,7 +359,7 @@ const SearchFilterBarContent: React.FC<SearchFilterBarProps> = ({ variant = 'her
 
             {showCalendar && (
               <div
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden z-[60] border border-slate-200 dark:border-slate-800 p-2"
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-surface dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden z-[100] border border-slate-200 dark:border-slate-800 p-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <DateRange
