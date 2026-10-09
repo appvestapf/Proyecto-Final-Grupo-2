@@ -123,4 +123,16 @@ export const propertyService = {
       return undefined;
     }
   },
+  async getNextAvailable(id: string) {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/properties/${id}/next-available`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      console.error('Error obteniendo disponibilidad:', error);
+      return null;
+    }
+  },
+
 };

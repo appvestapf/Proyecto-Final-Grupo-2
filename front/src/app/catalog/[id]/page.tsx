@@ -65,13 +65,19 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resolvedParams = use(params);
+  
   const { token, isAuthenticated } = useAuthStore();
+  
+  // Hook de tu compañero para traer las fechas bloqueadas
   const { blockedDatesList, isDateBlocked } = useBlockedDates(resolvedParams.id);
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+
+  // === ESTADO: Disponibilidad Residencial ===
+  const [availability, setAvailability] = useState<{ availableNow: boolean, availableFrom: string | null } | null>(null);
 
   // === ESTADOS PARA ALQUILER TEMPORARIO (Calendario) ===
   const [showCalendar, setShowCalendar] = useState(false);
@@ -110,15 +116,28 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const [processingAppointment, setProcessingAppointment] = useState(false);
   const [hasScheduledVisit, setHasScheduledVisit] = useState(false);
 
-  // Carga de Propiedad
+  // Carga de Propiedad y Disponibilidad
   useEffect(() => {
-    const fetchProperty = async () => {
+    const fetchPropertyData = async () => {
       try {
         const data = await propertyService.getPropertyById(resolvedParams.id);
         if (!data) {
           router.push('/catalog');
-        } else {
-          setProperty(data);
+          return;
+        }
+        setProperty(data);
+
+        // Si es residencial, consultamos su disponibilidad a futuro
+        if (data.rentalType === 'Residencial') {
+          const availData = await propertyService.getNextAvailable(resolvedParams.id);
+          if (availData) {
+            setAvailability(availData);
+            // Si está ocupada, sugerimos como fecha de mudanza la fecha en la que se libera
+            if (!availData.availableNow && availData.availableFrom) {
+               const [year, month, day] = availData.availableFrom.split('-').map(Number);
+               setMoveInDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+            }
+          }
         }
       } catch {
         toast.error('Error al cargar la propiedad');
@@ -127,7 +146,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
         setLoading(false);
       }
     };
-    fetchProperty();
+    fetchPropertyData();
   }, [resolvedParams.id, router]);
 
   // Verificar si el usuario ya tiene una visita activa para esta propiedad
@@ -336,6 +355,15 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const startDate = dateRange[0].startDate;
   const endDate = dateRange[0].endDate;
   const hasValidRange = startDate && endDate && startDate.getTime() !== endDate.getTime();
+  
+  // SOLUCIÓN AL ERROR DEL NULL: Variable estricta booleana
+  const isResidencialOccupied = Boolean(
+    property.rentalType === 'Residencial' && 
+    availability !== null && 
+    availability.availableNow === false && 
+    availability.availableFrom !== null && 
+    new Date(moveInDate) <= new Date(availability.availableFrom)
+  );
 
   return (
     <>
@@ -359,7 +387,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {imagesList.map((img, idx) => (
                 <div key={idx} className={`relative w-full h-[300px] md:h-[450px] ${idx % 3 === 0 ? 'md:col-span-2 md:h-[600px]' : ''}`}>
-                  <Image src={img} alt={`${property.title} - foto ${idx + 1}`} fill className="object-cover rounded-xl" />
+                  <Image src={img} alt={`${property.title} foto ${idx + 1}`} fill className="object-cover rounded-xl" />
                 </div>
               ))}
             </div>
@@ -460,6 +488,18 @@ export default function PropertyDetailPage({ params }: PageProps) {
                     </div>
                   </div>
 
+                  {/* ALERTA DE DISPONIBILIDAD PARA RESIDENCIALES */}
+                  {property.rentalType === 'Residencial' && availability && !availability.availableNow && (
+                    <div className="mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                      <h4 className="text-amber-800 dark:text-amber-400 font-bold text-sm flex items-center gap-2 mb-1">
+                        <CalendarClock size={16} /> Propiedad Ocupada
+                      </h4>
+                      <p className="text-amber-700/80 dark:text-amber-500/80 text-xs">
+                        Esta propiedad se encuentra bajo contrato. Podrás iniciar un alquiler a partir del <strong>{availability.availableFrom ? new Date(availability.availableFrom).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}</strong>.
+                      </p>
+                    </div>
+                  )}
+
                   {property.rentalType === 'Temporario' ? (
                     <div ref={calRef} className="relative mb-6">
                       <div 
@@ -506,7 +546,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                         <input
                           type="date"
                           value={moveInDate}
-                          min={getTodayString()}
+                          min={availability && !availability.availableNow && availability.availableFrom ? availability.availableFrom : getTodayString()}
                           onChange={(e) => setMoveInDate(e.target.value)}
                           className="w-full bg-transparent text-sm font-semibold text-main outline-none dark:[color-scheme:dark] cursor-pointer"
                         />
@@ -556,9 +596,9 @@ export default function PropertyDetailPage({ params }: PageProps) {
                   <Button 
                     variant="primary" 
                     onClick={handleReservation}
-                    disabled={processingPayment || !property.isAvailable}
+                    disabled={processingPayment || !property.isAvailable || isResidencialOccupied}
                     className={`w-full py-4 text-base border-none flex items-center justify-center gap-2 rounded-[14px] shadow-sm ${
-                      !property.isAvailable 
+                      !property.isAvailable || isResidencialOccupied
                         ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed' 
                         : 'bg-[#EAB308] hover:bg-[#CA8A04] text-white cursor-pointer hover:shadow-md transition-all'
                     }`}
@@ -567,6 +607,8 @@ export default function PropertyDetailPage({ params }: PageProps) {
                       <><Loader2 className="animate-spin" size={20} /> Preparando pago...</>
                     ) : !property.isAvailable ? (
                       "Propiedad no disponible"
+                    ) : isResidencialOccupied ? (
+                      "Ajustar fecha para reservar"
                     ) : (
                       "Solicitar reserva"
                     )}
