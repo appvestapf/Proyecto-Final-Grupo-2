@@ -150,9 +150,9 @@ export class ReservationService {
       );
 
     const today = todayDateString();
-    if (requestedStartDate && requestedStartDate < today)
+    if (requestedStartDate && requestedStartDate <= today)
       throw new BadRequestException(
-        'La fecha de inicio no puede ser anterior a hoy',
+        'La fecha de inicio debe ser posterior a hoy',
       );
 
     let startDate: string;
