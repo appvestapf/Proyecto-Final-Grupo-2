@@ -31,7 +31,6 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
-  // Cerrar menú mobile al cambiar de ruta
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
@@ -50,8 +49,8 @@ export default function Navbar() {
   const isHome = pathname === '/';
 
   const wrapperStyles = isHome
-    ? "absolute top-0 left-0 bg-transparent border-transparent"
-    : "relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200";
+  ? "absolute top-0 left-0 right-0 z-50 bg-transparent border-transparent"
+  : "relative z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200";
 
   const textStyles = isHome 
     ? "text-white hover:text-gray-200" 
@@ -177,7 +176,7 @@ export default function Navbar() {
 
         {/* Menú Móvil Desplegable */}
         {mobileMenuOpen && (
-          <div className={`md:hidden absolute top-full left-0 w-full z-50 ${
+          <div className={`md:hidden absolute top-full left-0 w-full z-[60] ${
             isHome 
               ? 'bg-slate-900/95 backdrop-blur-xl text-white border-slate-800' 
               : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-800'
