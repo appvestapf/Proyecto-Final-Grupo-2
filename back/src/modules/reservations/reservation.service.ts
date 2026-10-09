@@ -150,9 +150,9 @@ export class ReservationService {
       );
 
     const today = todayDateString();
-    if (requestedStartDate && requestedStartDate < today)
+    if (requestedStartDate && requestedStartDate <= today)
       throw new BadRequestException(
-        'La fecha de inicio no puede ser anterior a hoy',
+        'La fecha de inicio debe ser posterior a hoy',
       );
 
     let startDate: string;
@@ -290,107 +290,274 @@ export class ReservationService {
       order: { createdAt: 'DESC' },
     });
   }
-  async getDashboardMetrics() {
-    // 1. Métricas Generales
-    const { revenue } = await this.reservationsRepository
+  async getDashboardMetrics(user: {
+  id: string;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+}) {
+  const isSuperAdmin = user.isSuperAdmin;
+
+  // ==========================================
+  // 1. INGRESOS TOTALES
+  // ==========================================
+
+  const revenueQuery = this.reservationsRepository
+    .createQueryBuilder('reservation')
+    .leftJoin('reservation.property', 'property')
+    .select('SUM(reservation.totalPrice)', 'revenue')
+    .where('reservation.status = :status', {
+      status: ReservationStatus.CONFIRMED,
+    });
+
+  if (!isSuperAdmin) {
+    revenueQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
+
+  const { revenue } = await revenueQuery.getRawOne();
+
+  // ==========================================
+  // 2. PROPIEDADES ACTIVAS
+  // ==========================================
+
+  const activePropertiesQuery =
+    this.propertiesRepository
+      .createQueryBuilder('property')
+      .where('property.isDeleted = :isDeleted', {
+        isDeleted: false,
+      })
+      .andWhere('property.isAvailable = :isAvailable', {
+        isAvailable: true,
+      });
+
+  if (!isSuperAdmin) {
+    activePropertiesQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
+
+  const activeProperties =
+    await activePropertiesQuery.getCount();
+
+  // ==========================================
+  // 3. RESERVAS PENDIENTES
+  // ==========================================
+
+  const pendingReservationsQuery =
+    this.reservationsRepository
       .createQueryBuilder('reservation')
-      .select('SUM(reservation.totalPrice)', 'revenue')
+      .leftJoin('reservation.property', 'property')
+      .where('reservation.status = :status', {
+        status: ReservationStatus.PENDING,
+      });
+
+  if (!isSuperAdmin) {
+    pendingReservationsQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
+
+  const pendingReservations =
+    await pendingReservationsQuery.getCount();
+
+  // ==========================================
+  // 4. RESERVAS CONFIRMADAS
+  // ==========================================
+
+  const confirmedReservationsQuery =
+    this.reservationsRepository
+      .createQueryBuilder('reservation')
+      .leftJoin('reservation.property', 'property')
       .where('reservation.status = :status', {
         status: ReservationStatus.CONFIRMED,
-      })
-      .getRawOne();
+      });
 
-    const activeProperties = await this.propertiesRepository.count({
-      where: { isDeleted: false, isAvailable: true },
-    });
+  if (!isSuperAdmin) {
+    confirmedReservationsQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
 
-    const pendingReservations = await this.reservationsRepository.count({
-      where: { status: ReservationStatus.PENDING },
-    });
+  const confirmedReservations =
+    await confirmedReservationsQuery.getCount();
 
-    const confirmedReservations = await this.reservationsRepository.count({
-      where: { status: ReservationStatus.CONFIRMED },
-    });
+  // ==========================================
+  // 5. OCUPACIÓN
+  // ==========================================
 
-    let occupancyRate = 0;
-    if (activeProperties > 0) {
-      occupancyRate = Math.round(
-        (confirmedReservations / activeProperties) * 100,
-      );
-    }
+  let occupancyRate = 0;
 
-    // 2. Gráfico: Ingresos de los últimos 6 meses
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  if (activeProperties > 0) {
+    occupancyRate = Math.round(
+      (confirmedReservations / activeProperties) * 100,
+    );
+  }
 
-    const recentConfirmed = await this.reservationsRepository.find({
-      where: { status: ReservationStatus.CONFIRMED },
-    });
+  // ==========================================
+  // 6. INGRESOS ÚLTIMOS 6 MESES
+  // ==========================================
 
-    const monthNames = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
-    const revenueMap = new Map();
+  const sixMonthsAgo = new Date();
 
-    // Creamos los últimos 6 meses en orden cronológico con valor 0
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      revenueMap.set(monthNames[d.getMonth()], 0);
-    }
+  sixMonthsAgo.setMonth(
+    sixMonthsAgo.getMonth() - 6,
+  );
 
-    // Sumamos el dinero al mes correspondiente
-    recentConfirmed.forEach((res) => {
-      const resDate = new Date(res.createdAt);
-      if (resDate >= sixMonthsAgo) {
-        const month = monthNames[resDate.getMonth()];
-        if (revenueMap.has(month)) {
-          revenueMap.set(month, revenueMap.get(month) + Number(res.totalPrice));
-        }
+  const recentConfirmedQuery =
+    this.reservationsRepository
+      .createQueryBuilder('reservation')
+      .leftJoin('reservation.property', 'property')
+      .where('reservation.status = :status', {
+        status: ReservationStatus.CONFIRMED,
+      });
+
+  if (!isSuperAdmin) {
+    recentConfirmedQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
+
+  const recentConfirmed =
+    await recentConfirmedQuery.getMany();
+
+  const monthNames = [
+    'Ene',
+    'Feb',
+    'Mar',
+    'Abr',
+    'May',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dic',
+  ];
+
+  const revenueMap = new Map<string, number>();
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+
+    d.setMonth(d.getMonth() - i);
+
+    revenueMap.set(
+      monthNames[d.getMonth()],
+      0,
+    );
+  }
+
+  recentConfirmed.forEach((res) => {
+    const resDate = new Date(res.createdAt);
+
+    if (resDate >= sixMonthsAgo) {
+      const month =
+        monthNames[resDate.getMonth()];
+
+      if (revenueMap.has(month)) {
+        revenueMap.set(
+          month,
+          revenueMap.get(month)! +
+            Number(res.totalPrice),
+        );
       }
-    });
+    }
+  });
 
-    const revenueData = Array.from(revenueMap, ([name, total]) => ({
+  const revenueData = Array.from(
+    revenueMap,
+    ([name, total]) => ({
       name,
       total,
-    }));
+    }),
+  );
 
-    // 3. Actividad Reciente: Últimas 5 reservas con datos del usuario y propiedad
-    const recentActivityRaw = await this.reservationsRepository.find({
-      relations: { property: true, user: true },
-      order: { createdAt: 'DESC' },
-      take: 5,
-    });
+  // ==========================================
+  // 7. ACTIVIDAD RECIENTE
+  // ==========================================
 
-    const recentActivity = recentActivityRaw.map((res) => ({
+  const recentActivityQuery =
+    this.reservationsRepository
+      .createQueryBuilder('reservation')
+      .leftJoinAndSelect(
+        'reservation.property',
+        'property',
+      )
+      .leftJoinAndSelect(
+        'reservation.user',
+        'user',
+      )
+      .orderBy(
+        'reservation.createdAt',
+        'DESC',
+      )
+      .take(5);
+
+  if (!isSuperAdmin) {
+    recentActivityQuery.andWhere(
+      'property.ownerId = :ownerId',
+      {
+        ownerId: user.id,
+      },
+    );
+  }
+
+  const recentActivityRaw =
+    await recentActivityQuery.getMany();
+
+  const recentActivity =
+    recentActivityRaw.map((res) => ({
       id: res.id,
-      user: res.user?.name || 'Usuario desconocido',
-      property: res.property?.name || 'Propiedad eliminada',
+      user:
+        res.user?.name ||
+        'Usuario desconocido',
+      property:
+        res.property?.name ||
+        'Propiedad eliminada',
       status: res.status,
       date: res.createdAt,
       amount: Number(res.totalPrice),
     }));
 
-    return {
-      monthlyRevenue: Number(revenue) || 0,
-      activeProperties,
-      pendingReservations,
-      occupancyRate: occupancyRate > 100 ? 100 : occupancyRate,
-      revenueData,
-      recentActivity,
-    };
-  }
+  // ==========================================
+  // 8. RESPONSE
+  // ==========================================
+
+  return {
+    monthlyRevenue:
+      Number(revenue) || 0,
+
+    activeProperties,
+
+    pendingReservations,
+
+    occupancyRate:
+      occupancyRate > 100
+        ? 100
+        : occupancyRate,
+
+    revenueData,
+
+    recentActivity,
+  };
+}
 
   async getBlockedDates(propertyId: string) {
     const reservations = await this.reservationsRepository

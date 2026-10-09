@@ -63,10 +63,11 @@ export interface Property extends BaseProperty {
   isPetFriendly: boolean;
   hasGarage: boolean;
   images: string[];
-  // Agrega esto:
   owner?: {
     id: string;
     name: string;
     email: string;
   } | null;
+  availableNow?: boolean;
+  availableFrom?: string | null;
 }

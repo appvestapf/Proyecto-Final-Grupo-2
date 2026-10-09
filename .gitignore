@@ -1,1 +1,15 @@
-node_modules
+# Dependencias y compilaciones
+node_modules/
+.next/
+dist/
+build/
+out/
+
+# Archivos de entorno y logs
+.env*
+*.log
+
+# Sistema operativo e IDEs
+.DS_Store
+.idea/
+.vscode/

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle2, Loader2, ArrowRight, Info } from "lucide-react";
 
-export default function PagoExitosoPage() {
-  // Estado para manejar la espera simulada
+function PagoExitosoContent() {
+  const searchParams = useSearchParams();
+
+  // Mantenemos solo el estado para simular la verificación inicial
   const [isVerifying, setIsVerifying] = useState(true);
 
+  const paymentId = searchParams.get("payment_id") || searchParams.get("collection_id");
+
+  // Temporizador para simular la carga (puedes ajustar el tiempo o eliminarlo si tu backend verifica de inmediato)
   useEffect(() => {
-    // Simulamos un retraso de 3.5 segundos para dar tiempo al Webhook
-    // de actualizar el estado de la reserva en el backend.
     const timer = setTimeout(() => {
       setIsVerifying(false);
     }, 3500);
@@ -19,61 +23,89 @@ export default function PagoExitosoPage() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] bg-white px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md border border-slate-200 rounded-xl p-8 shadow-sm text-center">
-        
+    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-app px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md rounded-xl border border-subtle bg-surface p-8 text-center shadow-sm">
         {isVerifying ? (
-          // --- ESTADO DE VERIFICACIÓN (Muestra esto primero) ---
           <div className="flex flex-col items-center animate-in fade-in duration-500">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-5 border border-blue-100 shadow-xs">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-xs">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">
+            <h1 className="mb-3 text-2xl font-bold tracking-tight text-main">
               Verificando tu pago...
             </h1>
-            <p className="text-sm font-medium text-slate-600 leading-relaxed mb-2">
+            <p className="mb-2 text-sm font-medium leading-relaxed text-muted">
               Estamos confirmando la transacción con Mercado Pago.
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted">
               Por favor, aguardá un momento.
             </p>
           </div>
         ) : (
-          // --- ESTADO CONFIRMADO (Aparece luego de 3.5s) ---
           <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 border border-emerald-100 shadow-xs">
-              <CheckCircle2 className="w-8 h-8" />
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-secondary/20 bg-secondary/10 text-secondary shadow-xs">
+              <CheckCircle2 className="h-8 w-8" />
             </div>
-            
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">
+
+            <h1 className="mb-3 text-2xl font-bold tracking-tight text-main">
               ¡Reserva Confirmada!
             </h1>
-            
-            <p className="text-sm font-medium text-slate-600 leading-relaxed mb-6">
-              Hemos registrado tu pago exitosamente. Ya podés ver los detalles y comunicarte con el anfitrión.
+
+            <p className="mb-4 text-sm font-medium leading-relaxed text-muted">
+              Tu pago ha sido registrado de forma segura. La propiedad ha quedado reservada.
             </p>
 
-            <div className="w-full border-t border-slate-100 my-6" />
+            {paymentId && (
+              <div className="mb-4 w-full rounded-lg border border-subtle bg-app p-3 font-mono text-xs text-muted">
+                Comprobante MP: #{paymentId}
+              </div>
+            )}
 
-            <div className="flex flex-col w-full gap-3">
+            {/* CUADRO INFORMATIVO DE DEMORA DE SINCRONIZACIÓN */}
+            <div className="mb-6 w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 p-4 text-left flex items-start gap-3">
+              <Info className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={20} />
+              <div className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                <p>
+                  <strong>Aviso:</strong> La actualización en el sistema puede demorar hasta un minuto. Si en tu panel la reserva aún figura como <strong>Pendiente</strong>, por favor actualizá la página en unos instantes.
+                </p>
+              </div>
+            </div>
+
+            <div className="my-4 w-full border-t border-subtle" />
+
+            {/* Botones de navegación manuales */}
+            <div className="flex w-full flex-col gap-3">
               <Link
-                href="/perfil/alquileres"
-                className="w-full text-center text-sm font-medium bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                href="/perfil/alquileres?status=approved"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-white shadow-sm transition-colors duration-200 hover:bg-primary/90"
               >
                 Ir a Mis Alquileres
+                <ArrowRight size={16} />
               </Link>
-              
+
               <Link
                 href="/"
-                className="w-full text-center text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors duration-200 py-2"
+                className="w-full py-2 text-center text-sm font-medium text-muted transition-colors duration-200 hover:text-primary"
               >
                 Volver al Inicio
               </Link>
             </div>
           </div>
         )}
-
       </div>
     </div>
+  );
+}
+
+export default function PagoExitosoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[70vh] items-center justify-center bg-app">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <PagoExitosoContent />
+    </Suspense>
   );
 }

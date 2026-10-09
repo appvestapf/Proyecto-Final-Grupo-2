@@ -21,7 +21,6 @@ const SUGGESTED_DESTINATIONS = [
   "Bogotá"
 ];
 
-// Carga dinámica de PropertyMap con ssr: false
 const PropertyMap = dynamic<PropertyMapProps>(
   () => import('@/components/property/PropertyMap/PropertyMap').then((mod) => mod.PropertyMap),
   { ssr: false }
@@ -37,24 +36,27 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
-  // Carga de propiedades desde el servicio según los parámetros de la URL
   useEffect(() => {
     const loadProperties = async () => {
       setLoading(true);
       try {
         const keyword = searchParams.get('keyword') || searchParams.get('location') || undefined;
-        const startDate = searchParams.get('startDate') || undefined;
+        const rentalType = searchParams.get('rentalType') || undefined;
+
+        const startDate = searchParams.get('startDate') || searchParams.get('moveInDate') || undefined;
         const endDate = searchParams.get('endDate') || undefined;
+        
+        const durationParam = searchParams.get('durationMonths') || searchParams.get('months');
+        const months = durationParam ? parseInt(durationParam, 10) : undefined;
+
         const capacityParam = searchParams.get('capacity');
         const capacity = capacityParam ? parseInt(capacityParam, 10) : undefined;
 
-        const rentalType = searchParams.get('rentalType') || undefined;
         const maxPriceParam = searchParams.get('maxPrice');
         const maxPriceVal = maxPriceParam ? parseFloat(maxPriceParam) : undefined;
 
-        // Solo enviamos maxPrice si existe rentalType definido (regla Backend)
         const maxPrice = (rentalType && maxPriceVal && !isNaN(maxPriceVal)) ? maxPriceVal : undefined;
-        const priceUnit = maxPrice ? (rentalType === 'Temporario' ? 'noche' : 'mes') : undefined;
+        const priceUnit = maxPrice ? (rentalType?.toLowerCase() === 'temporario' ? 'noche' : 'mes') : undefined;
 
         const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
         const isPetFriendly = isPetFriendlyParam === 'true' ? true : undefined;
@@ -66,7 +68,8 @@ function CatalogContent() {
         const searchPayload: PropertySearchParams = {
           keyword,
           startDate,
-          endDate,
+          endDate: rentalType?.toLowerCase() === 'residencial' ? undefined : endDate,
+          months: months && !isNaN(months) ? months : undefined,
           capacity: capacity && !isNaN(capacity) ? capacity : undefined,
           rentalType,
           maxPrice,
@@ -92,7 +95,6 @@ function CatalogContent() {
     loadProperties();
   }, [searchParams]);
 
-  // Filtro defensivo de respaldo en el cliente (Sin filtro de precio para dejar trabajar al Backend)
   const filteredProperties = useMemo(() => {
     const rentalType = searchParams.get('rentalType');
     const isPetFriendlyParam = searchParams.get('isPetFriendly') || searchParams.get('petsAllowed');
@@ -123,7 +125,6 @@ function CatalogContent() {
     router.push(`/catalog?keyword=${encodeURIComponent(dest)}`);
   };
 
-  // Re-búsqueda por área geográfica manteniendo el estado en los query params
   const handleAreaSearch = (lat: number, lng: number, radius: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('lat', lat.toFixed(6));
@@ -137,12 +138,10 @@ function CatalogContent() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredProperties.slice(startIndex, startIndex + itemsPerPage);
 
-  // Mapeo limpio usando nuestro helper utilitario
   const mapLocations = useMemo(() => {
     return mapPropertiesToLocations(filteredProperties);
   }, [filteredProperties]);
 
-  // Coordenadas iniciales derivadas de la URL (si existen)
   const initialLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined;
   const initialLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : undefined;
 
@@ -181,7 +180,6 @@ function CatalogContent() {
               ))}
             </div>
           ) : (
-            /* ESTADO VACÍO MEJORADO */
             <div className="text-center py-12 px-6 bg-surface border border-subtle rounded-3xl my-6 flex flex-col items-center shadow-sm">
               <div className="w-16 h-16 bg-app rounded-full flex items-center justify-center text-muted mb-4 border border-subtle">
                 <SearchX size={32} />

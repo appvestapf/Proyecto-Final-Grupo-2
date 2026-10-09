@@ -4,7 +4,7 @@ import React from 'react';
 import { Property } from '@/interfaces/property';
 import { Badge } from '@/components/common/Badge/Badge';
 import { FavoriteButton } from '@/components/common/FavoriteButton/FavoriteButton';
-import { Star, Bath, Bed, Tag } from 'lucide-react';
+import { Star, Bath, Bed, Tag, CalendarClock } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -24,16 +24,33 @@ export const CardInmueble = ({ data }: { data: Property }) => {
 
   return (
     <Link href={detailHref} className="block w-full h-full">
-      <div className="w-full h-full bg-surface rounded-[12px] border border-subtle shadow-sm overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:-translate-y-1">
+      {/* 
+        ¡AQUÍ ESTÁ LA MAGIA! 
+        Agregamos `relative z-0` para crear un Stacking Context.
+        Así encerramos todos los z-10 hijos dentro de esta tarjeta.
+      */}
+      <div className="relative z-0 w-full h-full bg-surface rounded-[12px] border border-subtle shadow-sm overflow-hidden flex flex-col cursor-pointer transition-all duration-200 hover:-translate-y-1">
         
         {/* Contenedor de Imagen */}
         <div className="relative h-[220px] w-full bg-app shrink-0">
+          
+          {/* BADGE (z-10) */}
           <div className="absolute top-3 left-3 z-10">
             <Badge text={data.rentalType} type={data.rentalType} />
           </div>
-
-          {/* Botón de Favorito Flotante */}
-          <div className="absolute top-3 right-3 z-10">
+          
+          {/* OVERLAY DE DISPONIBILIDAD (z-10) */}
+          {data.rentalType === 'Residencial' && data.availableNow === false && data.availableFrom && (
+            <div className="absolute inset-x-0 bottom-0 z-10 p-3 bg-gradient-to-t from-slate-900/90 via-slate-900/70 to-transparent">
+              <div className="flex items-center gap-2 text-white text-[11px] font-semibold tracking-wide">
+                <CalendarClock size={14} className="text-amber-400" />
+                <span>Libre desde {new Date(data.availableFrom).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* BOTÓN FAVORITO (z-20 para asegurar que sea clickeable por encima de un posible overlay) */}
+          <div className="absolute top-3 right-3 z-20">
             <FavoriteButton propertyId={data.id} />
           </div>
 
@@ -42,7 +59,7 @@ export const CardInmueble = ({ data }: { data: Property }) => {
             alt={data.name || data.title || "Inmueble"} 
             fill
             sizes="(max-width: 768px) 100vw, 320px"
-            className="object-cover"
+            className={`object-cover transition-transform duration-500 ${data.availableNow === false ? 'opacity-90' : 'group-hover:scale-105'}`}
           />
         </div>
 
