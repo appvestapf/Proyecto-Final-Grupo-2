@@ -2,18 +2,18 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle2, Loader2, ArrowRight, Info } from "lucide-react";
 
 function PagoExitosoContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Mantenemos solo el estado para simular la verificación inicial
   const [isVerifying, setIsVerifying] = useState(true);
-  const [countdown, setCountdown] = useState(5);
 
   const paymentId = searchParams.get("payment_id") || searchParams.get("collection_id");
 
+  // Temporizador para simular la carga (puedes ajustar el tiempo o eliminarlo si tu backend verifica de inmediato)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVerifying(false);
@@ -21,22 +21,6 @@ function PagoExitosoContent() {
 
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    if (isVerifying || countdown <= 0) return;
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isVerifying, countdown]);
-
-  useEffect(() => {
-    if (!isVerifying && countdown === 0) {
-      router.push("/perfil/alquileres?status=approved");
-    }
-  }, [isVerifying, countdown, router]);
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center bg-app px-4 sm:px-6 lg:px-8">
@@ -76,13 +60,19 @@ function PagoExitosoContent() {
               </div>
             )}
 
-            <p className="mb-6 text-xs text-muted">
-              Redirigiendo a tus alquileres en{" "}
-              <span className="font-bold text-main">{countdown}</span> segundos...
-            </p>
+            {/* CUADRO INFORMATIVO DE DEMORA DE SINCRONIZACIÓN */}
+            <div className="mb-6 w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 p-4 text-left flex items-start gap-3">
+              <Info className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={20} />
+              <div className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                <p>
+                  <strong>Aviso:</strong> La actualización en el sistema puede demorar hasta un minuto. Si en tu panel la reserva aún figura como <strong>Pendiente</strong>, por favor actualizá la página en unos instantes.
+                </p>
+              </div>
+            </div>
 
             <div className="my-4 w-full border-t border-subtle" />
 
+            {/* Botones de navegación manuales */}
             <div className="flex w-full flex-col gap-3">
               <Link
                 href="/perfil/alquileres?status=approved"

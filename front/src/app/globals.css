@@ -95,3 +95,54 @@ h1, h2, h3, h4 {
 .custom-mapbox-popup .mapboxgl-popup-close-button {
   display: none !important;
 }
+
+/* ==========================================================================
+   REACT-DATE-RANGE DARK MODE OVERRIDES
+   ========================================================================== */
+.dark .rdrCalendarWrapper,
+.dark .rdrDateDisplayWrapper,
+.dark .rdrMonthAndYearWrapper {
+  background-color: var(--bg-app) !important;
+  color: var(--text-main) !important;
+}
+
+/* Color del mes y año en los selectores */
+.dark .rdrMonthAndYearPickers select {
+  color: var(--text-main) !important;
+}
+
+/* Color de los números de los días */
+.dark .rdrDayNumber span {
+  color: var(--text-main) !important;
+}
+
+/* Días de otros meses (grisados) */
+.dark .rdrDayPassive .rdrDayNumber span {
+  color: var(--text-muted) !important;
+  opacity: 0.5;
+}
+
+/* Días bloqueados o deshabilitados */
+.dark .rdrDayDisabled {
+  background-color: var(--bg-app) !important;
+}
+
+.dark .rdrDayDisabled .rdrDayNumber span {
+  color: var(--text-muted) !important;
+  opacity: 0.3;
+}
+
+/* Días de la semana (Lun, Mar, Mié...) */
+.dark .rdrWeekDay {
+  color: var(--text-muted) !important;
+}
+
+/* Botones de siguiente/anterior mes */
+.dark .rdrNextPrevButton {
+  background-color: var(--bg-surface) !important;
+}
+
+/* Arreglar bordes oscuros en la caja flotante (si usas la clase en React) */
+.dark .rdrDateRangeWrapper {
+  border-color: var(--border-subtle) !important;
+}
