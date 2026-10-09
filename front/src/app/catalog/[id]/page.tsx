@@ -9,6 +9,7 @@ import { propertyService } from '@/services/propertyService';
 import { appointmentService } from '@/services/appointmentService';
 import { reservationService } from '@/services/reservationService';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useBlockedDates } from '@/hooks/useBlockedDates';
 import { toast } from 'sonner';
 import { Users, Bed, Bath, Scaling, CheckCircle2, Loader2, X, CalendarClock, MapPin } from 'lucide-react';
 import { Button } from '@/components/common/Button/Button';
@@ -65,6 +66,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
   const searchParams = useSearchParams();
   const resolvedParams = use(params);
   const { token, isAuthenticated } = useAuthStore();
+  const { blockedDatesList, isDateBlocked } = useBlockedDates(resolvedParams.id);
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
@@ -281,6 +283,14 @@ export default function PropertyDetailPage({ params }: PageProps) {
         if (!moveInDate) {
           throw new Error('Por favor selecciona una fecha de mudanza');
         }
+
+        const [mYear, mMonth, mDay] = moveInDate.split('-').map(Number);
+        const selectedMoveInDate = new Date(mYear, mMonth - 1, mDay);
+
+        if (isDateBlocked(selectedMoveInDate)) {
+          throw new Error('La fecha de mudanza seleccionada se encuentra dentro de un período no disponible.');
+        }
+
         payload.startDate = moveInDate;
         payload.months = contractMonths;
       }
@@ -477,6 +487,7 @@ export default function PropertyDetailPage({ params }: PageProps) {
                             ranges={dateRange}
                             onChange={handleDateSelect}
                             minDate={new Date()}
+                            disabledDates={blockedDatesList}
                             months={1}
                             direction="horizontal"
                             locale={es}
@@ -499,6 +510,13 @@ export default function PropertyDetailPage({ params }: PageProps) {
                           onChange={(e) => setMoveInDate(e.target.value)}
                           className="w-full bg-transparent text-sm font-semibold text-main outline-none dark:[color-scheme:dark] cursor-pointer"
                         />
+                        
+                        {moveInDate && isDateBlocked(new Date(Number(moveInDate.split('-')[0]), Number(moveInDate.split('-')[1]) - 1, Number(moveInDate.split('-')[2]))) && (
+                        <span className="text-[11px] font-medium text-red-500 mt-1.5 flex items-center gap-1">
+                          ⚠️ Esta fecha no está disponible para ingresar.
+                        </span>
+                        )}
+
                       </div>
                       <div className="flex flex-col border border-subtle rounded-2xl p-3 bg-surface transition-colors">
                         <label className="block text-[10px] font-bold uppercase text-muted mb-1 cursor-pointer tracking-wider">
