@@ -105,9 +105,20 @@ export default function PropertyDetailPage({ params }: PageProps) {
     }];
   });
 
-  // === ESTADOS PARA ALQUILER RESIDENCIAL ===
-  const [moveInDate, setMoveInDate] = useState(getTomorrowString());
-  const [contractMonths, setContractMonths] = useState(6);
+// === ESTADOS PARA ALQUILER RESIDENCIAL ===
+const [moveInDate, setMoveInDate] = useState<string>(() => {
+  const startDateParam = searchParams.get('startDate');
+  if (startDateParam) return startDateParam;
+  return getTomorrowString();
+});
+
+const [contractMonths, setContractMonths] = useState<number>(() => {
+  const monthsParam = searchParams.get('months');
+  if (monthsParam && !isNaN(Number(monthsParam))) {
+    return Number(monthsParam);
+  }
+  return 12;
+});
 
   // === ESTADOS PARA CITAS (Visita Presencial) ===
   const [showAppointment, setShowAppointment] = useState(false);
@@ -130,12 +141,13 @@ export default function PropertyDetailPage({ params }: PageProps) {
         // Si es residencial, consultamos su disponibilidad a futuro
         if (data.rentalType === 'Residencial') {
           const availData = await propertyService.getNextAvailable(resolvedParams.id);
-          if (availData) {
-            setAvailability(availData);
-            // Si está ocupada, sugerimos como fecha de mudanza la fecha en la que se libera
-            if (!availData.availableNow && availData.availableFrom) {
-               const [year, month, day] = availData.availableFrom.split('-').map(Number);
-               setMoveInDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+        if (availData) {
+          setAvailability(availData);
+          // Solo sobreescribimos moveInDate si NO venía una fecha elegida desde el buscador/URL
+          const startDateParam = searchParams.get('startDate');
+          if (!startDateParam && !availData.availableNow && availData.availableFrom) {
+            const [year, month, day] = availData.availableFrom.split('-').map(Number);
+            setMoveInDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
             }
           }
         }

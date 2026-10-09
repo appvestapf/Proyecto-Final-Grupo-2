@@ -36,6 +36,16 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
 
+  // Detectar si hay algún filtro o parámetro de búsqueda activo en la URL
+  const hasActiveFilters = useMemo(() => {
+    const keys = [
+      'keyword', 'location', 'rentalType', 'startDate', 'endDate', 
+      'moveInDate', 'durationMonths', 'months', 'capacity', 
+      'maxPrice', 'isPetFriendly', 'petsAllowed', 'lat', 'lng', 'radius'
+    ];
+    return keys.some((key) => searchParams.has(key));
+  }, [searchParams]);
+
   useEffect(() => {
     const loadProperties = async () => {
       setLoading(true);
@@ -157,6 +167,24 @@ function CatalogContent() {
 
         {/* Lista de Tarjetas */}
         <div className="lg:col-span-7 space-y-6">
+
+          {/* Barra para limpiar filtros si hay búsquedas o filtros activos */}
+          {hasActiveFilters && (
+            <div className="flex items-center justify-between bg-surface border border-subtle px-4 py-3 rounded-2xl shadow-sm">
+              <span className="text-xs md:text-sm font-medium text-muted">
+                Filtros aplicados ({filteredProperties.length} {filteredProperties.length === 1 ? 'resultado' : 'resultados'})
+              </span>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-app hover:bg-subtle/50 text-main text-xs font-semibold rounded-xl border border-subtle transition-all cursor-pointer"
+              >
+                <RefreshCw size={14} className="text-primary" />
+                <span>Limpiar filtros</span>
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center py-2">
               {[...Array(6)].map((_, i) => (
